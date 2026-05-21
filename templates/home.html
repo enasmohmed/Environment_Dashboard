@@ -1464,7 +1464,7 @@
         <div class="compare-years-panel" id="compare-years-panel" aria-label="Years to compare"></div>
         <span class="file-badge" id="file-badge">No workbook loaded</span>
         <label id="upload-label">Upload Excel<input type="file" id="file-input" accept=".xlsx,.xlsm"></label>
-        <button type="button" id="btn-clear" hidden>Clear upload</button>
+        <button type="button" id="btn-clear" hidden>Remove saved file</button>
         <a href="/admin/dashboard/environmentworkbook/">Admin</a>
       </div>
     </div>
@@ -1711,8 +1711,8 @@
       return;
     }
     badge.textContent = year + ': ' + name +
-      (source === 'admin' ? ' (Admin)' : source === 'session' ? ' (uploaded)' : '');
-    clearBtn.hidden = source !== 'session';
+      (source === 'admin' ? ' (Admin)' : source === 'server' ? ' (saved)' : '');
+    clearBtn.hidden = !name;
   }
 
   function applyApiPayload(body) {

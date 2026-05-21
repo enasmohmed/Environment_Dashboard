@@ -1,6 +1,7 @@
 import logging
 
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
@@ -20,12 +21,9 @@ from .report_years import (
 
 logger = logging.getLogger(__name__)
 
-SESSION_ENV_BY_YEAR = "environment_workbook_by_year"
 SESSION_ENV_SELECTED_YEAR = "environment_selected_year"
 SESSION_ENV_VIEW_MODE = "environment_view_mode"
 SESSION_ENV_COMPARE_YEARS = "environment_compare_years"
-SESSION_ENV_DATA = "environment_workbook_data"
-SESSION_ENV_FILENAME = "environment_workbook_filename"
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -64,48 +62,23 @@ def _parse_years_csv(value) -> list[int]:
     return out
 
 
-def _session_by_year(request) -> dict[str, dict]:
-    raw = request.session.get(SESSION_ENV_BY_YEAR)
-    if isinstance(raw, dict) and raw:
-        out: dict[str, dict] = {}
-        for key, entry in raw.items():
-            if not isinstance(entry, dict) or not entry.get("data"):
-                continue
-            y = _parse_year_value(key, visible_only=False)
-            if y is not None:
-                out[str(y)] = {
-                    "data": entry["data"],
-                    "file_name": entry.get("file_name"),
-                }
-        return out
-
-    legacy = request.session.get(SESSION_ENV_DATA)
-    if legacy:
-        dy = default_report_year()
-        return {str(dy): {"data": legacy, "file_name": request.session.get(SESSION_ENV_FILENAME)}}
-    return {}
-
-
-def _save_session_by_year(
+def _save_view_preferences(
     request,
-    by_year: dict[str, dict],
     selected_year: int,
     *,
     view_mode: str | None = None,
     compare_years: list[int] | None = None,
 ) -> None:
-    request.session[SESSION_ENV_BY_YEAR] = by_year
     request.session[SESSION_ENV_SELECTED_YEAR] = selected_year
     if view_mode is not None:
         request.session[SESSION_ENV_VIEW_MODE] = view_mode
     if compare_years is not None:
         request.session[SESSION_ENV_COMPARE_YEARS] = compare_years
-    request.session.pop(SESSION_ENV_DATA, None)
-    request.session.pop(SESSION_ENV_FILENAME, None)
     request.session.modified = True
 
 
-def _admin_workbooks_by_year() -> dict[int, tuple[dict, str]]:
+def _workbooks_by_year() -> dict[int, tuple[dict, str]]:
+    """Active parsed workbooks per report year (database — shared for all visitors)."""
     out: dict[int, tuple[dict, str]] = {}
     for year in configured_years(visible_only=False):
         wb = (
@@ -120,26 +93,50 @@ def _admin_workbooks_by_year() -> dict[int, tuple[dict, str]]:
     return out
 
 
+def _persist_workbook(
+    year: int, filename: str, raw: bytes, parsed: dict
+) -> EnvironmentWorkbook:
+    """Save upload to DB so every visitor sees the same dashboard data."""
+    EnvironmentWorkbook.objects.filter(report_year=year).update(is_active=False)
+    wb = EnvironmentWorkbook(
+        report_year=year,
+        is_active=True,
+        parsed_snapshot=parsed,
+    )
+    wb.file.save(filename, ContentFile(raw), save=True)
+    EnvironmentWorkbook.objects.filter(report_year=year, is_active=True).exclude(
+        pk=wb.pk
+    ).update(is_active=False)
+    return wb
+
+
+def _delete_workbook_for_year(year: int) -> bool:
+    """Remove active workbook for a year (public clear or replace on re-upload)."""
+    deleted = False
+    for wb in EnvironmentWorkbook.objects.filter(report_year=year, is_active=True):
+        if wb.file:
+            wb.file.delete(save=False)
+        wb.delete()
+        deleted = True
+    return deleted
+
+
 def _resolve_year_data(
-    session_map: dict[str, dict], admin_map: dict[int, tuple[dict, str]], year: int
+    db_map: dict[int, tuple[dict, str]], year: int
 ) -> tuple[dict | None, str | None, str | None]:
-    ykey = str(year)
-    sess = session_map.get(ykey)
-    if sess:
-        return sess["data"], sess.get("file_name"), "session"
-    admin_entry = admin_map.get(year)
-    if admin_entry:
-        return admin_entry[0], admin_entry[1], "admin"
+    entry = db_map.get(year)
+    if entry:
+        return entry[0], entry[1], "server"
     return None, None, None
 
 
-def _build_years_meta(session_map: dict, admin_map: dict) -> list[dict]:
+def _build_years_meta(db_map: dict[int, tuple[dict, str]]) -> list[dict]:
     years_meta = []
     for cfg in years_for_api():
         year = cfg["year"]
         if not cfg["is_visible"]:
             continue
-        data, file_name, source = _resolve_year_data(session_map, admin_map, year)
+        data, file_name, source = _resolve_year_data(db_map, year)
         years_meta.append(
             {
                 "year": year,
@@ -162,10 +159,9 @@ def _pick_selected_year(request, explicit: int | None = None) -> int:
     )
     if stored is not None:
         return stored
-    session_map = _session_by_year(request)
-    admin_map = _admin_workbooks_by_year()
+    db_map = _workbooks_by_year()
     for year in configured_years(visible_only=True):
-        if str(year) in session_map or year in admin_map:
+        if year in db_map:
             return year
     return default_report_year()
 
@@ -177,11 +173,10 @@ def _build_years_response(
     mode: str = "single",
     compare_years: list[int] | None = None,
 ) -> dict:
-    session_map = _session_by_year(request)
-    admin_map = _admin_workbooks_by_year()
-    years_meta = _build_years_meta(session_map, admin_map)
+    db_map = _workbooks_by_year()
+    years_meta = _build_years_meta(db_map)
 
-    data, file_name, source = _resolve_year_data(session_map, admin_map, selected_year)
+    data, file_name, source = _resolve_year_data(db_map, selected_year)
 
     payload: dict = {
         "ok": True,
@@ -199,7 +194,7 @@ def _build_years_response(
     if mode == "compare" and compare_years:
         datasets: dict[str, dict] = {}
         for year in compare_years:
-            ydata, yname, ysrc = _resolve_year_data(session_map, admin_map, year)
+            ydata, yname, ysrc = _resolve_year_data(db_map, year)
             if ydata:
                 datasets[str(year)] = {
                     "data": ydata,
@@ -223,41 +218,40 @@ def _build_years_response(
 def environment_api(request):
     """
     GET:
-      ?year=2025 — single-year view
-      ?mode=compare&years=2025,2026 — multi-year comparison payload
-    POST: file + year (year must exist in Report years admin)
-    DELETE: ?year=2025 clears session upload for that year
+      ?year=2025 — single-year view (data from database)
+      ?mode=compare&years=2025,2026 — multi-year comparison
+    POST: file + year — parse, save file + JSON snapshot to database
+    DELETE: ?year=2025 — remove saved workbook for that year
     """
     if request.method == "DELETE":
         year = _parse_year_value(request.GET.get("year"), visible_only=False)
         view_mode = request.session.get(SESSION_ENV_VIEW_MODE) or "single"
-        compare_years = request.session.get(SESSION_ENV_COMPARE_YEARS) or []
+        compare_years = list(request.session.get(SESSION_ENV_COMPARE_YEARS) or [])
 
         if year is not None:
-            by_year = _session_by_year(request)
-            by_year.pop(str(year), None)
+            _delete_workbook_for_year(year)
+            if year in compare_years:
+                compare_years = [y for y in compare_years if y != year]
             selected = _pick_selected_year(request)
             if selected == year:
+                db_map = _workbooks_by_year()
+                selected = default_report_year()
                 for y in configured_years(visible_only=True):
-                    if str(y) in by_year:
+                    if y in db_map:
                         selected = y
                         break
-                else:
-                    selected = default_report_year()
-            _save_session_by_year(
+            _save_view_preferences(
                 request,
-                by_year,
                 selected,
                 view_mode=view_mode,
                 compare_years=compare_years,
             )
         else:
-            request.session.pop(SESSION_ENV_BY_YEAR, None)
+            for y in configured_years(visible_only=False):
+                _delete_workbook_for_year(y)
             request.session.pop(SESSION_ENV_SELECTED_YEAR, None)
             request.session.pop(SESSION_ENV_VIEW_MODE, None)
             request.session.pop(SESSION_ENV_COMPARE_YEARS, None)
-            request.session.pop(SESSION_ENV_DATA, None)
-            request.session.pop(SESSION_ENV_FILENAME, None)
             request.session.modified = True
             selected = default_report_year()
             view_mode = "single"
@@ -278,10 +272,12 @@ def environment_api(request):
 
         if mode == "compare" and len(compare_years) >= 2:
             selected = compare_years[0]
-            request.session[SESSION_ENV_VIEW_MODE] = "compare"
-            request.session[SESSION_ENV_COMPARE_YEARS] = compare_years
-            request.session[SESSION_ENV_SELECTED_YEAR] = selected
-            request.session.modified = True
+            _save_view_preferences(
+                request,
+                selected,
+                view_mode="compare",
+                compare_years=compare_years,
+            )
             return JsonResponse(
                 _build_years_response(
                     request, selected, mode="compare", compare_years=compare_years
@@ -292,10 +288,9 @@ def environment_api(request):
             year = _pick_selected_year(
                 request, _parse_year_value(year_param, visible_only=True)
             )
-            request.session[SESSION_ENV_VIEW_MODE] = "single"
-            request.session[SESSION_ENV_COMPARE_YEARS] = []
-            request.session[SESSION_ENV_SELECTED_YEAR] = year
-            request.session.modified = True
+            _save_view_preferences(
+                request, year, view_mode="single", compare_years=[]
+            )
             return JsonResponse(_build_years_response(request, year, mode="single"))
 
         view_mode = request.session.get(SESSION_ENV_VIEW_MODE) or "single"
@@ -309,10 +304,7 @@ def environment_api(request):
             )
 
         year = _pick_selected_year(request)
-        request.session[SESSION_ENV_VIEW_MODE] = "single"
-        request.session[SESSION_ENV_COMPARE_YEARS] = []
-        request.session[SESSION_ENV_SELECTED_YEAR] = year
-        request.session.modified = True
+        _save_view_preferences(request, year, view_mode="single", compare_years=[])
         return JsonResponse(_build_years_response(request, year, mode="single"))
 
     f = request.FILES.get("file")
@@ -360,6 +352,7 @@ def environment_api(request):
                 status=400,
             )
         data = parse_environment_workbook(raw, report_year=year)
+        _persist_workbook(year, fname, raw, data)
     except ValueError as exc:
         return JsonResponse({"ok": False, "error": str(exc)}, status=400)
     except Exception as exc:
@@ -373,16 +366,13 @@ def environment_api(request):
             status=400,
         )
 
-    by_year = _session_by_year(request)
-    by_year[str(year)] = {"data": data, "file_name": f.name}
     view_mode = request.session.get(SESSION_ENV_VIEW_MODE) or "single"
     compare_years = list(request.session.get(SESSION_ENV_COMPARE_YEARS) or [])
     if year not in compare_years and view_mode == "compare":
         compare_years.append(year)
         compare_years.sort(reverse=True)
-    _save_session_by_year(
+    _save_view_preferences(
         request,
-        by_year,
         year,
         view_mode=view_mode,
         compare_years=compare_years if view_mode == "compare" else [],
