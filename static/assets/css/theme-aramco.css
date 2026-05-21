@@ -1,0 +1,237 @@
+/**
+ * TAMER 3PL Dashboard – Blue Palette (من الصورة)
+ * درجات أزرق واحدة: #EAF2FB → #1F4F9A
+ */
+
+:root {
+  /* 🔵 درجات الأزرق */
+  --aramco-primary-blue: #4A90E2;
+  --aramco-medium-blue: #3A7BD5;
+  --aramco-dark-blue: #2F6EC2;
+  --aramco-extra-dark: #1F4F9A;
+  --aramco-light-blue: #A9C9F0;
+  --aramco-soft-blue: #CFE1F7;
+  --aramco-bg-light: #EAF2FB;
+
+  /* Success / Outbound — أزرق للتوحيد */
+  --aramco-primary-green: #2F6EC2;
+  --aramco-deep-green: #1F4F9A;
+  --aramco-soft-green: #CFE1F7;
+
+  /* Utilization — درجات أزرق بدل برتقالي */
+  --aramco-capacity-orange: #4A90E2;
+  --aramco-soft-orange: #A9C9F0;
+
+  /* Danger / Alert — أحمر خفيف للتنبيهات فقط */
+  --aramco-alert-red: #D9645A;
+  --aramco-soft-red: #F3B2AD;
+
+  /* ⚪ كروت وخلفيات */
+  --aramco-bg-main: #EAF2FB;
+  --aramco-card: #FFFFFF;
+  --aramco-card-secondary: #FFFFFF;
+  --aramco-border: #E2E8F0;
+  --aramco-shadow: rgba(0, 0, 0, 0.05);
+
+  /* 🖤 نصوص */
+  --aramco-title: #1E293B;
+  --aramco-body: #475569;
+  --aramco-muted: #94A3B8;
+  --aramco-icon: #3A7BD5;
+
+  /* ربط الثيم */
+  --theme-default: var(--aramco-primary-blue);
+  --theme-secondary: var(--aramco-dark-blue);
+  --body-font-color: var(--aramco-body);
+  --light-background: var(--aramco-bg-light);
+  --light-bg: var(--aramco-bg-light);
+  --light2: var(--aramco-soft-blue);
+  --recent-box-bg: var(--aramco-soft-blue);
+  --chart-border: var(--aramco-border);
+  --bs-heading-color: var(--aramco-title);
+  --bs-card-cap-color: var(--aramco-muted);
+  --light-shade-primary: rgba(74, 144, 226, 0.15);
+}
+
+/* خلفية الصفحة */
+.page-body-wrapper,
+body .page-body-wrapper {
+  background-color: var(--aramco-bg-main) !important;
+}
+.page-body-wrapper .page-body {
+  background-color: var(--aramco-bg-main);
+}
+
+/* كروت */
+.card {
+  background-color: var(--aramco-card);
+  border-color: var(--aramco-border);
+  box-shadow: 0 1px 3px var(--aramco-shadow);
+}
+.card-header {
+  background-color: var(--aramco-card) !important;
+  border-color: var(--aramco-border);
+  color: var(--aramco-title);
+}
+
+/* Primary = أزرق التاب */
+.bg-primary,
+.btn-primary,
+.badge.bg-primary,
+.alert-primary,
+.txt-primary,
+.text-primary,
+.border-primary,
+.table-primary,
+.bg-primary .svg-fill {
+  color: #fff !important;
+  border-color: var(--aramco-primary-blue) !important;
+}
+.bg-primary.txt-primary,
+.bg-primary.text-primary { color: #fff !important; }
+.bg-light-primary,
+.light-primary {
+  background-color: var(--aramco-soft-blue) !important;
+  color: var(--aramco-extra-dark);
+}
+.text-primary,
+.txt-primary { color: var(--aramco-primary-blue) !important; }
+.btn-primary:not(.bg-primary) {
+  border-color: var(--aramco-primary-blue) !important;
+}
+.btn-primary:hover {
+  background-color: var(--aramco-medium-blue) !important;
+  border-color: var(--aramco-medium-blue) !important;
+}
+.btn-primary:active {
+  background-color: var(--aramco-dark-blue) !important;
+  border-color: var(--aramco-dark-blue) !important;
+}
+
+/* Success = أزرق غامق */
+.bg-success,
+.btn-success,
+.badge.bg-success,
+.alert-success,
+.txt-success,
+.text-success,
+.border-success,
+.table-success {
+  color: #fff !important;
+  border-color: var(--aramco-dark-blue) !important;
+}
+.bg-success.txt-success,
+.bg-success.text-success { color: #fff !important; }
+.bg-light-success,
+.light-success {
+  background-color: var(--aramco-soft-blue) !important;
+  color: var(--aramco-extra-dark);
+}
+.text-success,
+.txt-success { color: var(--aramco-dark-blue) !important; }
+.btn-success:not(.bg-success) {
+  background-color: var(--aramco-dark-blue) !important;
+  border-color: var(--aramco-dark-blue) !important;
+}
+.btn-success:hover {
+  background-color: var(--aramco-extra-dark) !important;
+  border-color: var(--aramco-extra-dark) !important;
+}
+
+/* Warning / Utilization = أزرق */
+.bg-warning,
+.btn-warning,
+.badge.bg-warning,
+.text-warning,
+.txt-warning {
+  color: var(--aramco-title) !important;
+  border-color: var(--aramco-primary-blue) !important;
+}
+.bg-light-warning {
+  background-color: var(--aramco-soft-blue) !important;
+}
+.text-warning,
+.txt-warning { color: var(--aramco-primary-blue) !important; }
+
+/* Danger */
+.bg-danger,
+.btn-danger,
+.badge.bg-danger,
+.alert-danger,
+.text-danger,
+.txt-danger {
+  color: #fff !important;
+  border-color: var(--aramco-alert-red) !important;
+}
+.bg-light-danger {
+  background-color: var(--aramco-soft-red) !important;
+}
+.text-danger,
+.txt-danger { color: var(--aramco-alert-red) !important; }
+
+/* نصوص */
+h1, h2, h3, h4, h5, h6,
+.card-title,
+.fw-bold.text-dark {
+  color: var(--aramco-title) !important;
+}
+body,
+p,
+.inbound-kpi-label,
+.dashboard-kpi-label {
+  color: var(--aramco-body);
+}
+.small.text-muted,
+.text-muted,
+.label {
+  color: var(--aramco-muted) !important;
+}
+
+/* حدود وجداول */
+.table-bordered,
+.dashboard-data-table,
+.border {
+  border-color: var(--aramco-border) !important;
+}
+.table thead th,
+.dashboard-data-table th {
+  background-color: var(--aramco-soft-blue) !important;
+  color: var(--aramco-title);
+}
+.table-responsive {
+  border-color: var(--aramco-border);
+}
+
+/* أيقونات */
+.card-header-icon.text-primary { color: var(--aramco-primary-blue) !important; }
+.card-header-icon.text-secondary { color: var(--aramco-muted) !important; }
+.inbound-kpi-icon.bg-success-soft { background-color: var(--aramco-soft-blue) !important; color: var(--aramco-dark-blue) !important; }
+.inbound-kpi-icon.bg-primary-soft { background-color: var(--aramco-soft-blue) !important; color: var(--aramco-primary-blue) !important; }
+
+/* Progress bars */
+.progress-bar.bg-success,
+.progress-bar[class*="success"] {
+  background-color: var(--aramco-dark-blue) !important;
+}
+.progress-bar.bg-warning {
+  background-color: var(--aramco-primary-blue) !important;
+}
+.progress-bar.bg-danger {
+  background-color: var(--aramco-alert-red) !important;
+}
+
+/* كروت الداشبورد */
+.inbound-kpi-card,
+.dashboard-kpi-card {
+  background: var(--aramco-card) !important;
+  border-color: var(--aramco-border) !important;
+  box-shadow: 0 2px 8px var(--aramco-shadow);
+}
+.inbound-kpi-card .inbound-kpi-value,
+.dashboard-kpi-card .dashboard-kpi-value {
+  color: var(--aramco-dark-blue) !important;
+}
+.inbound-kpi-card .inbound-kpi-label,
+.dashboard-kpi-card .dashboard-kpi-label {
+  color: var(--aramco-muted) !important;
+}

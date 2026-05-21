@@ -1,0 +1,2982 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d4f4f">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <link rel="icon" href="{% static 'assets/images/tamer_logistics_logo.png' %}" type="image/png">
+  <link rel="shortcut icon" href="{% static 'assets/images/tamer_logistics_logo.png' %}" type="image/png">
+  <link rel="apple-touch-icon" href="{% static 'assets/images/tamer_logistics_logo.png' %}">
+  <title>Tamer Logistics — ESG Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --header: #0f5132;
+      --header-light: #116b42;
+      --bg: #eef2f1;
+      --panel: #fff;
+      --border: rgba(15, 23, 42, 0.08);
+      --text: #0f172a;
+      --muted: #64748b;
+      --radius: 14px;
+      --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --green: #15803d;
+      --green-light: #86efac;
+      --yellow: #eab308;
+      --orange: #ea580c;
+      --blue: #38bdf8;
+      --red: #dc2626;
+      --purple: #7c3aed;
+      --teal: #0d9488;
+      --navy: #1e3a5f;
+      --coral: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+    }
+    .app-header {
+      background: linear-gradient(135deg, var(--header) 0%, var(--header-light) 100%);
+      color: #fff;
+      padding: 0.75rem 1.25rem 0;
+      box-shadow: 0 4px 20px rgba(13, 79, 79, 0.25);
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-logo {
+      flex-shrink: 0;
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #fff;
+      padding: 3px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .year-switcher {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: rgba(0,0,0,0.15);
+      border-radius: 10px;
+      padding: 0.25rem;
+    }
+    .year-switcher .year-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      opacity: 0.85;
+      padding: 0 0.35rem;
+    }
+    .year-btn {
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.85);
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      position: relative;
+    }
+    .year-btn[aria-selected="true"] {
+      background: #fff;
+      color: var(--header);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.12);
+    }
+    .year-btn .year-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      margin-left: 0.35rem;
+      vertical-align: middle;
+    }
+    .year-btn:not(.has-data) .year-dot {
+      background: rgba(255,255,255,0.35);
+    }
+    .view-mode-switcher {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+      background: rgba(0,0,0,0.12);
+      border-radius: 10px;
+      padding: 0.2rem;
+    }
+    .view-mode-btn {
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: rgba(255,255,255,0.9);
+      background: transparent;
+      border: none;
+      border-radius: 8px;
+      padding: 0.32rem 0.55rem;
+      cursor: pointer;
+    }
+    .view-mode-btn[aria-selected="true"] {
+      background: #fff;
+      color: var(--header);
+    }
+    .compare-years-panel {
+      display: none;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+      max-width: 320px;
+    }
+    .compare-years-panel.active { display: flex; }
+    .compare-year-chip {
+      font: inherit;
+      font-size: 0.72rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 8px;
+      padding: 0.25rem 0.5rem;
+      color: #fff;
+      cursor: pointer;
+    }
+    .compare-year-chip input { accent-color: #4ade80; }
+    .compare-year-chip.disabled { opacity: 0.45; cursor: not-allowed; }
+    .compare-banner {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 10px;
+      padding: 0.65rem 0.85rem;
+      margin-bottom: 1rem;
+      font-size: 0.82rem;
+      color: #065f46;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .compare-banner .tab-year-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .compare-banner .tab-year-pill {
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid #6ee7b7;
+      background: #fff;
+      color: #047857;
+      cursor: pointer;
+    }
+    .compare-banner .tab-year-pill[aria-selected="true"] {
+      background: #0f5132;
+      color: #fff;
+      border-color: #0f5132;
+    }
+    .compare-kpi-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin-bottom: 1.25rem;
+    }
+    .compare-kpi-table th, .compare-kpi-table td {
+      border: 1px solid var(--border);
+      padding: 0.55rem 0.65rem;
+      text-align: right;
+    }
+    .compare-kpi-table th:first-child, .compare-kpi-table td:first-child {
+      text-align: left;
+      font-weight: 600;
+    }
+    .compare-kpi-table thead th {
+      background: #f8fafc;
+      color: #0f5132;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+    .compare-kpi-table tbody tr:nth-child(even) td { background: #fafbfc; }
+    .compare-section-title {
+      margin: 1rem 0 0.65rem;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #0f5132;
+    }
+    .header-actions label {
+      font-size: 0.8rem;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 8px;
+      padding: 0.4rem 0.75rem;
+      cursor: pointer;
+    }
+    .header-actions label:hover { background: rgba(255,255,255,0.2); }
+    .header-actions input[type=file] { display: none; }
+    .header-actions a, .header-actions button {
+      font: inherit;
+      font-size: 0.8rem;
+      color: #fff;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 0.4rem 0.75rem;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .file-badge {
+      font-size: 0.75rem;
+      opacity: 0.9;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tab-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      overflow-x: auto;
+      padding-bottom: 0;
+    }
+    .tab-btn {
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.75);
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      padding: 0.65rem 0.85rem;
+      cursor: pointer;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .tab-btn[aria-selected="true"] {
+      color: var(--header);
+      background: #fff;
+      border-bottom: 3px solid var(--header);
+      border-radius: 10px 10px 0 0;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+    }
+    .main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.25rem 1rem 2.5rem;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (min-width: 700px) {
+      .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (min-width: 1100px) {
+      .kpi-grid { grid-template-columns: repeat(8, 1fr); }
+    }
+    .kpi-card {
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 0.9rem 0.85rem 0.85rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border-top: 4px solid var(--accent, var(--green));
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card .kpi-icon {
+      position: absolute;
+      top: 0.65rem;
+      right: 0.65rem;
+      font-size: 1.15rem;
+      line-height: 1;
+      opacity: 0.95;
+    }
+    .kpi-card .value {
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin: 0.25rem 0 0.15rem;
+    }
+    .kpi-card .label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .kpi-card .sub {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 1rem;
+    }
+    .chart-card {
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 1rem 1rem 0.5rem;
+      box-shadow: 0 2px 12px var(--border);
+      grid-column: span 12;
+    }
+    @media (min-width: 900px) {
+      .chart-card.span-7 { grid-column: span 7; }
+      .chart-card.span-6 { grid-column: span 6; }
+      .chart-card.span-5 { grid-column: span 5; }
+      .chart-card.span-4 { grid-column: span 4; }
+    }
+    .chart-card h3 {
+      margin: 0 0 0.75rem;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+    .chart-wrap { position: relative; height: 220px; }
+    .chart-wrap.tall { height: 260px; }
+    .section-block {
+      background: var(--panel);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 12px var(--border);
+    }
+    .section-block h3 {
+      margin: 0 0 0.75rem;
+      font-size: 0.95rem;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+    }
+    .data-table th, .data-table td {
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.5rem;
+      text-align: right;
+    }
+    .data-table th:first-child, .data-table td:first-child { text-align: left; }
+    .data-table th { background: #f8fafc; font-weight: 600; }
+    .data-table tr.grand-total td { background: #ecfdf5; font-weight: 700; }
+    /* —— Electricity tab (match ESG report) —— */
+    .elec-page .elec-kpis {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (min-width: 900px) {
+      .elec-page .elec-kpis { grid-template-columns: repeat(4, 1fr); }
+    }
+    .elec-page .elec-kpi {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem 1rem 0.85rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-top: none;
+      position: relative;
+    }
+    .elec-page .elec-kpi .elec-kpi-icon {
+      position: absolute;
+      top: 0.85rem;
+      right: 0.85rem;
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
+    .elec-page .elec-kpi .value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin: 0 0 0.2rem;
+    }
+    .elec-page .elec-kpi .label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+    .elec-page .elec-kpi .sub {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      margin-top: 0.15rem;
+    }
+    .elec-page .elec-kpi.theme-elec-yellow .value { color: #ca8a04; }
+    .elec-page .elec-kpi.theme-elec-orange .value { color: #ea580c; }
+    .elec-page .elec-kpi.theme-elec-amber .value { color: #d97706; }
+    .elec-page .elec-kpi.theme-elec-purple .value { color: #7c3aed; }
+    .elec-page .chart-card.elec-chart {
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .elec-page .chart-card.elec-chart h3 {
+      color: #0f5132;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .elec-page .chart-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #047857;
+      background: #d1fae5;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+    }
+    .elec-page .elec-section {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem 1rem 0.75rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .elec-page .elec-section h3 {
+      margin: 0 0 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #0f5132;
+    }
+    .elec-page .elec-section h3.solar-title::before {
+      content: '☀️ ';
+    }
+    .elec-page .elec-table {
+      font-size: 0.74rem;
+    }
+    .elec-page .elec-table thead th {
+      background: #f8fafc;
+      color: #0f5132;
+      font-weight: 700;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border-bottom: 2px solid #e2e8f0;
+      padding: 0.5rem 0.45rem;
+    }
+    .elec-page .elec-table tbody td {
+      padding: 0.4rem 0.45rem;
+      border-color: #f1f5f9;
+    }
+    .elec-page .elec-table tbody tr:nth-child(even) td {
+      background: #fafbfc;
+    }
+    .elec-page .elec-table .col-total {
+      background: #f8fafc;
+      font-weight: 600;
+    }
+    .elec-page .type-pill {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .elec-page .type-pill.warehouse {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .elec-page .type-pill.accommodation {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .elec-page .type-pill.labor {
+      background: #ffedd5;
+      color: #9a3412;
+    }
+    .elec-page .type-pill.default {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .elec-page .elec-table tr.grand-total td {
+      background: #ecfdf5;
+      color: #0f5132;
+      font-weight: 700;
+      border-top: 2px solid #a7f3d0;
+    }
+    [role="tab"][data-tab="electricity"][aria-selected="true"] {
+      color: var(--header);
+      border-bottom-color: #eab308;
+    }
+    [role="tab"][data-tab="generators"][aria-selected="true"] {
+      color: var(--header);
+      border-bottom-color: #ea580c;
+    }
+    /* —— Generators tab —— */
+    .gen-page .gen-kpis {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (min-width: 900px) {
+      .gen-page .gen-kpis { grid-template-columns: repeat(4, 1fr); }
+    }
+    .gen-page .gen-kpi {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem 1rem 0.85rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      position: relative;
+    }
+    .gen-page .gen-kpi .gen-kpi-icon {
+      position: absolute;
+      top: 0.85rem;
+      right: 0.85rem;
+      font-size: 1.2rem;
+    }
+    .gen-page .gen-kpi .value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 0.2rem;
+    }
+    .gen-page .gen-kpi .label { font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+    .gen-page .gen-kpi .sub { font-size: 0.7rem; color: #94a3b8; margin-top: 0.15rem; }
+    .gen-page .gen-kpi.theme-gen-amber .value { color: #c2410c; }
+    .gen-page .gen-kpi.theme-gen-orange .value { color: #ea580c; }
+    .gen-page .gen-kpi.theme-gen-brown .value { color: #a16207; }
+    .gen-page .gen-kpi.theme-gen-slate .value { color: #64748b; }
+    .gen-page .chart-card.gen-chart h3 { color: #0f5132; font-size: 0.9rem; }
+    .gen-page .gen-section {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .gen-page .gen-section h3 {
+      margin: 0 0 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #0f5132;
+    }
+    .gen-page .gen-table thead th {
+      background: #f8fafc;
+      color: #0f5132;
+      font-weight: 700;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+    }
+    .gen-page .gen-table tbody tr:nth-child(even) td { background: #fafbfc; }
+    .gen-page .gen-table .col-total { background: #fff7ed; font-weight: 600; }
+    .gen-page .fuel-pill {
+      display: inline-block;
+      padding: 0.12rem 0.45rem;
+      border-radius: 6px;
+      font-size: 0.66rem;
+      font-weight: 700;
+      background: #ffedd5;
+      color: #9a3412;
+    }
+    .gen-page .source-pill {
+      display: inline-block;
+      padding: 0.12rem 0.45rem;
+      border-radius: 6px;
+      font-size: 0.66rem;
+      font-weight: 700;
+      background: #f1f5f9;
+      color: #475569;
+    }
+    /* —— Water tab —— */
+    .water-page .water-kpis {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (min-width: 900px) {
+      .water-page .water-kpis { grid-template-columns: repeat(4, 1fr); }
+    }
+    .water-page .water-kpi {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem 1rem 0.85rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-top: 4px solid #4db6ac;
+      position: relative;
+    }
+    .water-page .water-kpi.theme-water-blue { border-top-color: #3b82f6; }
+    .water-page .water-kpi.theme-water-teal { border-top-color: #4db6ac; }
+    .water-page .water-kpi.theme-water-red { border-top-color: #c06c5d; }
+    .water-page .water-kpi.theme-water-purple { border-top-color: #8b5cf6; }
+    .water-page .water-kpi .water-kpi-icon {
+      position: absolute;
+      top: 0.85rem;
+      right: 0.85rem;
+      font-size: 1.2rem;
+    }
+    .water-page .water-kpi .value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 0.2rem;
+    }
+    .water-page .water-kpi .label { font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+    .water-page .water-kpi .sub { font-size: 0.7rem; color: #94a3b8; margin-top: 0.15rem; }
+    .water-page .water-kpi.theme-water-blue .value { color: #2563eb; }
+    .water-page .water-kpi.theme-water-teal .value { color: #0d9488; }
+    .water-page .water-kpi.theme-water-red .value { color: #c06c5d; }
+    .water-page .water-kpi.theme-water-purple .value { color: #7c3aed; }
+    .water-page .chart-card.water-chart-liters h3 { color: #0f5132; }
+    .water-page .chart-card.water-chart-cost h3 { color: #7f1d1d; }
+    .water-page .water-section {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .water-page .water-section h3 {
+      margin: 0 0 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #0f5132;
+    }
+    .water-page .water-section h3.cost-title { color: #9a3412; }
+    .water-page .water-table-liters thead th {
+      background: #f8fafc;
+      color: #0f5132;
+      font-weight: 700;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+    }
+    .water-page .water-table-cost thead th {
+      background: #fff7ed;
+      color: #9a3412;
+      font-weight: 700;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+    }
+    .water-page .water-table tbody tr:nth-child(even) td { background: #fafbfc; }
+    .water-page .water-table-liters .col-total { background: #ecfdf5; font-weight: 600; }
+    .water-page .water-table-cost .col-total { background: #fff7ed; font-weight: 600; color: #9a3412; }
+    .water-page .water-table .neg { color: #dc2626; font-weight: 600; }
+    .water-page .type-pill.office {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    .water-page .water-table tr.grand-total td {
+      background: #ecfdf5;
+      color: #0f5132;
+      font-weight: 700;
+      border-top: 2px solid #99f6e4;
+    }
+    [role="tab"][data-tab="water"][aria-selected="true"] {
+      color: var(--header);
+      border-bottom-color: #4db6ac;
+    }
+    /* —— Transportation tab —— */
+    .trans-page .trans-kpis {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (min-width: 700px) {
+      .trans-page .trans-kpis { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (min-width: 1100px) {
+      .trans-page .trans-kpis { grid-template-columns: repeat(6, 1fr); }
+    }
+    .trans-page .trans-kpi {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem 1rem 0.85rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      position: relative;
+    }
+    .trans-page .trans-kpi .trans-kpi-icon {
+      position: absolute;
+      top: 0.85rem;
+      right: 0.85rem;
+      font-size: 1.2rem;
+    }
+    .trans-page .trans-kpi .value {
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 0.2rem;
+    }
+    .trans-page .trans-kpi .label { font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+    .trans-page .trans-kpi .sub { font-size: 0.7rem; color: #94a3b8; margin-top: 0.15rem; }
+    .trans-page .trans-kpi.theme-trans-red .value { color: #dc2626; }
+    .trans-page .trans-kpi.theme-trans-green .value { color: #15803d; }
+    .trans-page .trans-kpi.theme-trans-yellow .value { color: #ca8a04; }
+    .trans-page .trans-kpi.theme-trans-blue .value { color: #2563eb; }
+    .trans-page .trans-charts {
+      margin-bottom: 1.25rem;
+    }
+    @media (min-width: 900px) {
+      .trans-page .trans-charts .chart-card { grid-column: span 4; }
+    }
+    .trans-page .trans-chart-fuel h3 { color: #dc2626; }
+    .trans-page .trans-chart-distance h3 { color: #15803d; }
+    .trans-page .trans-chart-trips h3 { color: #7c3aed; }
+    .trans-page .trans-section {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .trans-page .trans-section > h3 {
+      margin: 0 0 0.85rem;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #0f5132;
+    }
+    .trans-page .trans-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      margin-bottom: 0.85rem;
+    }
+    .trans-page .trans-search {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.45rem 0.75rem;
+      max-width: 360px;
+    }
+    .trans-page .trans-search input {
+      border: none;
+      background: transparent;
+      font: inherit;
+      font-size: 0.82rem;
+      width: 100%;
+      outline: none;
+    }
+    .trans-page .trans-filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .trans-page .trans-filter-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-right: 0.25rem;
+      min-width: 2.5rem;
+    }
+    .trans-page .filter-pill {
+      font: inherit;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.28rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      color: #475569;
+      cursor: pointer;
+    }
+    .trans-page .filter-pill[aria-pressed="true"] {
+      background: #0f5132;
+      border-color: #0f5132;
+      color: #fff;
+    }
+    .trans-page .trans-table-scroll {
+      overflow: auto;
+      max-height: 480px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+    }
+    .trans-page .trans-table {
+      width: max-content;
+      min-width: 100%;
+      border-collapse: collapse;
+      font-size: 0.7rem;
+    }
+    .trans-page .trans-table thead th {
+      background: #f8fafc;
+      color: #0f5132;
+      font-weight: 700;
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 0.45rem 0.4rem;
+      border: 1px solid #e2e8f0;
+      text-align: right;
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .trans-page .trans-table thead th.sticky-col {
+      left: 0;
+      z-index: 3;
+      background: #f1f5f9;
+    }
+    .trans-page .trans-table thead th.month-head {
+      text-align: center;
+      background: #ecfdf5;
+      border-bottom: none;
+    }
+    .trans-page .trans-table thead tr.subhead th {
+      top: 1.65rem;
+      font-size: 0.6rem;
+      color: #64748b;
+      background: #f8fafc;
+    }
+    .trans-page .trans-table tbody td {
+      padding: 0.35rem 0.4rem;
+      border: 1px solid #f1f5f9;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .trans-page .trans-table tbody td.sticky-col {
+      position: sticky;
+      left: 0;
+      background: #fff;
+      text-align: left;
+      z-index: 1;
+    }
+    .trans-page .trans-table tbody tr:nth-child(even) td { background: #fafbfc; }
+    .trans-page .trans-table tbody tr:nth-child(even) td.sticky-col { background: #fafbfc; }
+    .trans-page .trans-table .col-total { font-weight: 600; background: #f8fafc; }
+    .trans-page .type-pill-truck {
+      display: inline-block;
+      padding: 0.12rem 0.45rem;
+      border-radius: 6px;
+      font-size: 0.64rem;
+      font-weight: 700;
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .trans-page .fuel-pill {
+      display: inline-block;
+      padding: 0.12rem 0.45rem;
+      border-radius: 6px;
+      font-size: 0.64rem;
+      font-weight: 700;
+    }
+    .trans-page .fuel-pill-diesel {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .trans-page .fuel-pill-ev {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    .trans-page .fuel-pill-91 {
+      background: #ffedd5;
+      color: #9a3412;
+    }
+    .trans-page .fuel-pill-default {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .trans-page .trans-count {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    [role="tab"][data-tab="transportation"][aria-selected="true"] {
+      color: var(--header);
+      border-bottom-color: #dc2626;
+    }
+    /* —— Waste tab —— */
+    .waste-page .waste-kpis {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (min-width: 700px) {
+      .waste-page .waste-kpis { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (min-width: 1100px) {
+      .waste-page .waste-kpis { grid-template-columns: repeat(5, 1fr); }
+    }
+    .waste-page .waste-kpi {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem 1rem 0.85rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-top: 4px solid #22c55e;
+      position: relative;
+    }
+    .waste-page .waste-kpi.theme-waste-green { border-top-color: #22c55e; }
+    .waste-page .waste-kpi.theme-waste-orange { border-top-color: #ea580c; }
+    .waste-page .waste-kpi.theme-waste-teal { border-top-color: #14b8a6; }
+    .waste-page .waste-kpi.theme-waste-brown { border-top-color: #a16207; }
+    .waste-page .waste-kpi.theme-waste-red { border-top-color: #dc2626; }
+    .waste-page .waste-kpi .waste-kpi-icon {
+      position: absolute;
+      top: 0.85rem;
+      right: 0.85rem;
+      font-size: 1.2rem;
+    }
+    .waste-page .waste-kpi .value {
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 0.2rem;
+    }
+    .waste-page .waste-kpi .label { font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+    .waste-page .waste-kpi .sub { font-size: 0.7rem; color: #94a3b8; margin-top: 0.15rem; }
+    .waste-page .waste-kpi.theme-waste-green .value { color: #15803d; }
+    .waste-page .waste-kpi.theme-waste-orange .value { color: #ea580c; }
+    .waste-page .waste-kpi.theme-waste-teal .value { color: #0d9488; }
+    .waste-page .waste-kpi.theme-waste-brown .value { color: #a16207; }
+    .waste-page .waste-kpi.theme-waste-red .value { color: #dc2626; }
+    .waste-page .waste-charts {
+      margin-bottom: 1.25rem;
+    }
+    @media (min-width: 900px) {
+      .waste-page .waste-charts .chart-card { grid-column: span 6; }
+    }
+    .waste-page .waste-chart-recycling h3 { color: #2563eb; }
+    .waste-page .waste-chart-cost h3 { color: #dc2626; }
+    .waste-page .waste-section {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .waste-page .waste-section h3 {
+      margin: 0 0 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #0f5132;
+    }
+    .waste-page .waste-section.cost-section h3 { color: #9a3412; }
+    .waste-page .waste-table {
+      font-size: 0.74rem;
+    }
+    .waste-page .waste-table thead th {
+      background: #f8fafc;
+      color: #0f5132;
+      font-weight: 700;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border-bottom: 2px solid #e2e8f0;
+      padding: 0.5rem 0.45rem;
+    }
+    .waste-page .waste-table.cost-table thead th {
+      color: #9a3412;
+      background: #fff7ed;
+    }
+    .waste-page .waste-table tbody td {
+      padding: 0.4rem 0.45rem;
+      border-color: #f1f5f9;
+      text-align: right;
+    }
+    .waste-page .waste-table tbody td.text-left { text-align: left; }
+    .waste-page .waste-table tbody tr:nth-child(even) td { background: #fafbfc; }
+    .waste-page .waste-table .col-total { font-weight: 600; background: #f8fafc; }
+    .waste-page .waste-table tr.grand-total td {
+      background: #ecfdf5;
+      color: #0f5132;
+      font-weight: 700;
+      border-top: 2px solid #a7f3d0;
+    }
+    .waste-page .waste-table-scroll {
+      overflow: auto;
+      max-height: 420px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+    }
+    .waste-page .type-pill.manufacturing {
+      background: #dbeafe;
+      color: #1e3a8a;
+    }
+    .waste-page .type-pill.office {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+    [role="tab"][data-tab="waste"][aria-selected="true"] {
+      color: var(--header);
+      border-bottom-color: #22c55e;
+    }
+    /* —— Fugitive Gases tab —— */
+    .fug-page .fug-kpis {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (min-width: 900px) {
+      .fug-page .fug-kpis { grid-template-columns: repeat(4, 1fr); }
+    }
+    .fug-page .fug-kpi {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem 1rem 0.85rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      border-top: 4px solid #7c3aed;
+      position: relative;
+    }
+    .fug-page .fug-kpi.theme-fug-purple { border-top-color: #7c3aed; }
+    .fug-page .fug-kpi.theme-fug-red { border-top-color: #dc2626; }
+    .fug-page .fug-kpi.theme-fug-teal { border-top-color: #0d9488; }
+    .fug-page .fug-kpi.theme-fug-crimson { border-top-color: #991b1b; }
+    .fug-page .fug-kpi .fug-kpi-icon {
+      position: absolute;
+      top: 0.85rem;
+      right: 0.85rem;
+      font-size: 1.2rem;
+    }
+    .fug-page .fug-kpi .value {
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 0.2rem;
+    }
+    .fug-page .fug-kpi .label { font-size: 0.72rem; font-weight: 600; color: var(--muted); }
+    .fug-page .fug-kpi .sub { font-size: 0.7rem; color: #94a3b8; margin-top: 0.15rem; }
+    .fug-page .fug-kpi.theme-fug-purple .value { color: #5b21b6; }
+    .fug-page .fug-kpi.theme-fug-red .value { color: #15803d; }
+    .fug-page .fug-kpi.theme-fug-teal .value { color: #0369a1; }
+    .fug-page .fug-kpi.theme-fug-crimson .value { color: #991b1b; }
+    .fug-page .chart-card.fug-chart h3 {
+      color: #0f5132;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .fug-page .fug-section {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .fug-page .fug-section h3 {
+      margin: 0 0 0.75rem;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #0f5132;
+    }
+    .fug-page .fug-table {
+      font-size: 0.74rem;
+    }
+    .fug-page .fug-table thead th {
+      background: #f8fafc;
+      color: #0f5132;
+      font-weight: 700;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border-bottom: 2px solid #e2e8f0;
+      padding: 0.5rem 0.45rem;
+      text-align: right;
+    }
+    .fug-page .fug-table thead th.text-left { text-align: left; }
+    .fug-page .fug-table tbody td {
+      padding: 0.4rem 0.45rem;
+      border-color: #f1f5f9;
+      text-align: right;
+    }
+    .fug-page .fug-table tbody td.text-left { text-align: left; }
+    .fug-page .fug-table tbody tr:nth-child(even) td { background: #fafbfc; }
+    .fug-page .fug-table .col-total { font-weight: 600; background: #f8fafc; }
+    .fug-page .fug-table tr.grand-total td {
+      background: #ecfdf5;
+      color: #0f5132;
+      font-weight: 700;
+      border-top: 2px solid #a7f3d0;
+    }
+    .fug-page .type-pill.warehouse {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .fug-page .fug-table-scroll {
+      overflow: auto;
+      max-height: 480px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+    }
+    [role="tab"][data-tab="fugitive"][aria-selected="true"] {
+      color: var(--header);
+      border-bottom-color: #0d9488;
+    }
+    .table-scroll { overflow-x: auto; max-height: 360px; }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 12px var(--border);
+    }
+    .empty-state h2 { margin: 0 0 0.5rem; font-size: 1.15rem; }
+    .empty-state p { color: var(--muted); margin: 0 0 1rem; font-size: 0.9rem; }
+    .empty-state label {
+      display: inline-block;
+      background: var(--header);
+      color: #fff;
+      padding: 0.65rem 1.25rem;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    /* —— Governance tab —— */
+    .gov-page .gov-section {
+      background: #fff;
+      border-radius: 14px;
+      padding: 1rem 1rem 0.9rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .gov-page .gov-section > h3 {
+      margin: 0 0 0.85rem;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #0f5132;
+    }
+    .gov-page .gov-champions-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+    @media (min-width: 700px) {
+      .gov-page .gov-champions-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .gov-page .gov-champion-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      padding: 1rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+    }
+    .gov-page .gov-champion-card .gov-card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.35rem;
+      flex-shrink: 0;
+    }
+    .gov-page .gov-champion-card .gov-card-name {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 0.15rem;
+    }
+    .gov-page .gov-champion-card .gov-card-role {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #0f5132;
+      margin: 0 0 0.2rem;
+    }
+    .gov-page .gov-champion-card .gov-card-sub {
+      font-size: 0.78rem;
+      color: #64748b;
+      line-height: 1.35;
+    }
+    .gov-page .gov-owners-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+    @media (min-width: 600px) {
+      .gov-page .gov-owners-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (min-width: 1000px) {
+      .gov-page .gov-owners-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    .gov-page .gov-owner-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.9rem 0.95rem;
+      background: #fafbfc;
+      border: 1px solid #e8edf2;
+      border-radius: 12px;
+      min-height: 100px;
+    }
+    .gov-page .gov-owner-card .gov-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.15rem;
+      flex-shrink: 0;
+    }
+    .gov-page .gov-owner-card .gov-card-name {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 0.12rem;
+      line-height: 1.25;
+    }
+    .gov-page .gov-owner-card .gov-card-dept {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #64748b;
+      margin: 0 0 0.25rem;
+    }
+    .gov-page .gov-owner-card .gov-card-scope-label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #94a3b8;
+      margin: 0 0 0.1rem;
+    }
+    .gov-page .gov-owner-card .gov-card-scope {
+      font-size: 0.74rem;
+      color: #334155;
+      line-height: 1.35;
+    }
+    .gov-page .gov-coverage .coverage-section {
+      margin-top: 0;
+      padding-top: 0;
+    }
+    .gov-page .gov-coverage .coverage-header h2 {
+      font-size: 0.78rem;
+    }
+    .gov-page .gov-notes-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1rem 1.1rem;
+    }
+    .gov-page .gov-notes-box ul {
+      margin: 0;
+      padding: 0 0 0 1.1rem;
+      list-style: disc;
+    }
+    .gov-page .gov-notes-box li {
+      font-size: 0.82rem;
+      color: #475569;
+      line-height: 1.5;
+      margin-bottom: 0.55rem;
+    }
+    .gov-page .gov-notes-box li:last-child { margin-bottom: 0; }
+    .gov-page .gov-notes-box li strong {
+      color: #0f5132;
+      font-weight: 700;
+    }
+    [role="tab"][data-tab="governance"][aria-selected="true"] {
+      color: var(--header);
+      border-bottom-color: #0d9488;
+    }
+    .status-msg {
+      font-size: 0.8rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+    .status-msg.error { background: #fef2f2; color: #b91c1c; }
+    .status-msg.ok { background: #ecfdf5; color: #047857; }
+    .theme-yellow { --accent: var(--yellow); }
+    .theme-orange { --accent: var(--orange); }
+    .theme-blue { --accent: var(--blue); }
+    .theme-red { --accent: var(--red); }
+    .theme-purple { --accent: var(--purple); }
+    .theme-green { --accent: var(--green); }
+    .theme-amber { --accent: #c2410c; }
+    .theme-navy { --accent: var(--navy); }
+    .theme-cyan { --accent: #06b6d4; }
+    .coverage-section {
+      margin-top: 1.75rem;
+      padding-top: 0.25rem;
+    }
+    .coverage-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .coverage-header h2 {
+      margin: 0;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--header);
+      white-space: nowrap;
+    }
+    .coverage-header .line {
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(90deg, rgba(13, 79, 79, 0.35), transparent);
+      border-radius: 2px;
+    }
+    .coverage-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.75rem;
+    }
+    @media (min-width: 900px) {
+      .coverage-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    .coverage-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: #f8fafb;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+      box-shadow: 0 1px 6px rgba(15, 23, 42, 0.04);
+    }
+    .coverage-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      background: #fff;
+      border: 1px solid var(--border);
+    }
+    .coverage-card .coverage-label {
+      flex: 1;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+      min-width: 0;
+    }
+    .coverage-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.3rem 0.65rem;
+      border-radius: 999px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .coverage-badge.completed {
+      color: #287d3c;
+      background: #e6f4ea;
+    }
+    .coverage-badge.partially_completed {
+      color: #b45d03;
+      background: #fff4e5;
+    }
+    .coverage-badge.pending {
+      color: #64748b;
+      background: #f1f5f9;
+    }
+    .coverage-footnote {
+      margin: 0.85rem 0 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-top">
+      <div class="brand">
+        <img
+          class="brand-logo"
+          src="{% static 'assets/images/tamer_logistics_logo.png' %}"
+          alt="Tamer Logistics"
+          width="38"
+          height="38"
+        >
+        <span id="brand-title">{{ dashboard_title }}</span>
+      </div>
+      <div class="header-actions">
+        <div class="view-mode-switcher" role="group" aria-label="View mode">
+          <button type="button" class="view-mode-btn" data-mode="single" aria-selected="true">Single year</button>
+          <button type="button" class="view-mode-btn" data-mode="compare" aria-selected="false">Compare</button>
+        </div>
+        <div class="year-switcher" id="year-switcher" role="group" aria-label="Report year">
+          <span class="year-label">Year</span>
+        </div>
+        <div class="compare-years-panel" id="compare-years-panel" aria-label="Years to compare"></div>
+        <span class="file-badge" id="file-badge">No workbook loaded</span>
+        <label id="upload-label">Upload Excel<input type="file" id="file-input" accept=".xlsx,.xlsm"></label>
+        <button type="button" id="btn-clear" hidden>Clear upload</button>
+        <a href="/admin/dashboard/environmentworkbook/">Admin</a>
+      </div>
+    </div>
+    <nav class="tab-nav" id="tab-nav" role="tablist" aria-label="ESG sections"></nav>
+  </header>
+
+  <main class="main">
+    <div id="status" hidden></div>
+    <div id="empty" class="empty-state">
+      <h2 id="empty-title">Upload Environment workbook</h2>
+      <p>Choose a <strong>report year</strong> in the header, then upload the workbook named <strong id="empty-workbook-name">Environment-Tamer-Logistics-{{ default_year }}.xlsx</strong> for that year.</p>
+      <label id="empty-upload-label">Choose Excel file<input type="file" id="file-input-empty" accept=".xlsx,.xlsm"></label>
+    </div>
+    <div id="dashboard" hidden></div>
+  </main>
+
+  <script>
+(function () {
+  var API = '/api/environment/';
+  var DEFAULT_YEAR = {{ default_year }};
+  var WORKBOOK_PREFIX = 'Environment-Tamer-Logistics';
+
+  function expectedWorkbookName(year) {
+    return WORKBOOK_PREFIX + '-' + year + '.xlsx';
+  }
+  var charts = [];
+  var state = {
+    data: null,
+    fileName: null,
+    source: null,
+    activeTab: 'overview',
+    selectedYear: DEFAULT_YEAR,
+    yearsMeta: [],
+    viewMode: 'single',
+    compareYears: [],
+    compareTabYear: null,
+    datasets: {},
+    visibleYears: [DEFAULT_YEAR]
+  };
+
+  function csrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.getAttribute('content')) return meta.getAttribute('content');
+    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  function apiFetch(url, options) {
+    options = options || {};
+    options.credentials = 'same-origin';
+    var headers = options.headers || {};
+    var method = (options.method || 'GET').toUpperCase();
+    if (method !== 'GET' && method !== 'HEAD') {
+      var token = csrfToken();
+      if (token) headers['X-CSRFToken'] = token;
+    }
+    options.headers = headers;
+    return fetch(url, options).then(function (response) {
+      return response.text().then(function (text) {
+        var body = null;
+        if (text) {
+          try { body = JSON.parse(text); } catch (e) { body = null; }
+        }
+        return { response: response, body: body, text: text };
+      });
+    });
+  }
+
+  var TAB_ICONS = {
+    overview: '◉', electricity: '⚡', generators: '⛽', water: '💧',
+    transportation: '🚛', waste: '♻', fugitive: '❄', governance: '👤'
+  };
+
+  function fmtAxis(v) {
+    v = Math.round(v);
+    if (v >= 1e6) return Math.round(v / 1e6) + 'M';
+    if (v >= 1e3) return Math.round(v / 1e3) + 'K';
+    return String(v);
+  }
+
+  var KPI_ICONS = {
+    grid_electricity: '⚡',
+    solar: '☀️',
+    water: '💧',
+    fleet_fuel: '🚛',
+    fugitive: '❄️',
+    recycling: '♻️',
+    generator_fuel: '⛽',
+    fleet_vehicles: '🚛'
+  };
+
+  var CHART_GRADIENTS = {
+    grid: { top: '#15803d', bottom: 'rgba(134, 239, 172, 0.35)' },
+    water: { top: '#0d9488', bottom: 'rgba(153, 246, 228, 0.4)' },
+    fleet: { top: '#dc2626', bottom: 'rgba(254, 202, 202, 0.45)' },
+    branch: { top: '#0f5132', bottom: 'rgba(134, 239, 172, 0.3)' }
+  };
+
+  function destroyCharts() {
+    charts.forEach(function (c) { c.destroy(); });
+    charts = [];
+  }
+
+  function showStatus(msg, kind) {
+    var el = document.getElementById('status');
+    el.hidden = !msg;
+    el.className = 'status-msg ' + (kind || '');
+    el.textContent = msg || '';
+  }
+
+  function updateBrandTitle() {
+    var el = document.getElementById('brand-title');
+    if (!el) return;
+    if (state.viewMode === 'compare' && state.compareYears.length >= 2) {
+      el.textContent = 'Tamer Logistics ESG — Compare ' + state.compareYears.join(' vs ');
+    } else {
+      el.textContent = 'Tamer Logistics ESG ' + state.selectedYear;
+    }
+  }
+
+  function syncViewModeUi() {
+    document.querySelectorAll('.view-mode-btn').forEach(function (btn) {
+      btn.setAttribute('aria-selected', btn.dataset.mode === state.viewMode ? 'true' : 'false');
+    });
+    var yearSwitcher = document.getElementById('year-switcher');
+    var comparePanel = document.getElementById('compare-years-panel');
+    if (yearSwitcher) yearSwitcher.style.display = state.viewMode === 'single' ? '' : 'none';
+    if (comparePanel) {
+      comparePanel.classList.toggle('active', state.viewMode === 'compare');
+    }
+  }
+
+  function renderCompareYearChips() {
+    var panel = document.getElementById('compare-years-panel');
+    if (!panel) return;
+    panel.innerHTML = '';
+    (state.yearsMeta || []).forEach(function (meta) {
+      var chip = document.createElement('label');
+      chip.className = 'compare-year-chip' + (meta.has_data ? '' : ' disabled');
+      var checked = state.compareYears.indexOf(meta.year) >= 0;
+      chip.innerHTML = '<input type="checkbox" ' + (meta.has_data ? '' : 'disabled ') +
+        (checked ? 'checked ' : '') + 'data-year="' + meta.year + '"> ' + (meta.label || meta.year);
+      if (meta.has_data) {
+        chip.querySelector('input').addEventListener('change', onCompareCheckboxChange);
+      }
+      panel.appendChild(chip);
+    });
+  }
+
+  function onCompareCheckboxChange() {
+    var checked = [];
+    document.querySelectorAll('#compare-years-panel input:checked').forEach(function (inp) {
+      checked.push(parseInt(inp.dataset.year, 10));
+    });
+    checked.sort(function (a, b) { return b - a; });
+    state.compareYears = checked;
+    if (checked.length >= 2) {
+      loadCompareMode(checked);
+    } else if (checked.length === 1) {
+      showStatus('Select at least 2 years to compare', 'ok');
+    }
+  }
+
+  function loadCompareMode(years) {
+    showStatus('Loading comparison…', 'ok');
+    var q = '?mode=compare&years=' + years.map(encodeURIComponent).join(',');
+    apiFetch(API + q).then(function (res) {
+      showStatus('', '');
+      if (res.body && res.body.ok) applyApiPayload(res.body);
+    }).catch(function () { showStatus('Compare load failed', 'error'); });
+  }
+
+  function setViewMode(mode) {
+    state.viewMode = mode;
+    syncViewModeUi();
+    if (mode === 'compare') {
+      renderCompareYearChips();
+      var withData = (state.yearsMeta || []).filter(function (m) { return m.has_data; }).map(function (m) { return m.year; });
+      if (state.compareYears.length < 2 && withData.length >= 2) {
+        state.compareYears = withData.slice(0, Math.min(3, withData.length));
+        renderCompareYearChips();
+        loadCompareMode(state.compareYears);
+      } else if (state.compareYears.length >= 2) {
+        loadCompareMode(state.compareYears);
+      } else {
+        showStatus('Upload at least 2 years with data to compare', 'ok');
+      }
+    } else {
+      selectYear(state.selectedYear || DEFAULT_YEAR);
+    }
+  }
+
+  function renderYearSwitcher() {
+    var wrap = document.getElementById('year-switcher');
+    if (!wrap) return;
+    wrap.innerHTML = '<span class="year-label">Year</span>';
+    (state.yearsMeta || []).forEach(function (meta) {
+      var year = meta.year;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'year-btn' + (meta.has_data ? ' has-data' : '');
+      btn.setAttribute('aria-selected', year === state.selectedYear ? 'true' : 'false');
+      btn.dataset.year = String(year);
+      btn.innerHTML = String(year) + '<span class="year-dot" aria-hidden="true"></span>';
+      btn.addEventListener('click', function () {
+        if (state.selectedYear === year) return;
+        selectYear(year);
+      });
+      wrap.appendChild(btn);
+    });
+    updateUploadLabels();
+    renderCompareYearChips();
+    syncViewModeUi();
+  }
+
+  function updateUploadLabels() {
+    var y = state.selectedYear;
+    var wb = expectedWorkbookName(y);
+    var uploadLabel = document.getElementById('upload-label');
+    var emptyLabel = document.getElementById('empty-upload-label');
+    var emptyTitle = document.getElementById('empty-title');
+    var emptyWb = document.getElementById('empty-workbook-name');
+    if (uploadLabel) {
+      uploadLabel.childNodes[0].textContent = 'Upload ' + wb + ' ';
+    }
+    if (emptyLabel) {
+      emptyLabel.childNodes[0].textContent = 'Choose ' + wb + ' ';
+    }
+    if (emptyTitle) {
+      emptyTitle.textContent = 'Upload ' + wb;
+    }
+    if (emptyWb) {
+      emptyWb.textContent = wb;
+    }
+  }
+
+  function setFileBadge(name, source) {
+    var badge = document.getElementById('file-badge');
+    var clearBtn = document.getElementById('btn-clear');
+    var year = state.selectedYear;
+    if (!name) {
+      badge.textContent = year + ': No workbook loaded';
+      clearBtn.hidden = true;
+      return;
+    }
+    badge.textContent = year + ': ' + name +
+      (source === 'admin' ? ' (Admin)' : source === 'session' ? ' (uploaded)' : '');
+    clearBtn.hidden = source !== 'session';
+  }
+
+  function applyApiPayload(body) {
+    state.yearsMeta = body.years || [];
+    state.visibleYears = body.visible_years || state.yearsMeta.map(function (m) { return m.year; });
+    state.viewMode = body.mode || 'single';
+    state.compareYears = body.compare_years || state.compareYears;
+    state.datasets = body.datasets || {};
+    state.selectedYear = body.selected_year || DEFAULT_YEAR;
+    updateBrandTitle();
+    renderYearSwitcher();
+    var hasAny = state.yearsMeta.some(function (m) { return m.has_data; });
+
+    if (state.viewMode === 'compare' && state.compareYears.length >= 2 && Object.keys(state.datasets).length >= 2) {
+      state.compareTabYear = state.compareYears[0];
+      var firstKey = String(state.compareYears[0]);
+      var first = state.datasets[firstKey];
+      applyData(first.data, first.file_name, first.source, true);
+      return;
+    }
+
+    if (body.data) {
+      applyData(body.data, body.file_name, body.source);
+    } else {
+      state.data = null;
+      state.fileName = null;
+      state.source = null;
+      setFileBadge(null, null);
+      document.getElementById('tab-nav').innerHTML = '';
+      document.getElementById('dashboard').hidden = true;
+      document.getElementById('empty').hidden = false;
+      if (!hasAny) {
+        document.getElementById('empty').querySelector('p').innerHTML =
+          'Upload <strong>' + expectedWorkbookName(state.selectedYear) + '</strong> for ' +
+          state.selectedYear + '. Add more years in Admin → Report years.';
+      }
+    }
+  }
+
+  function selectYear(year) {
+    showStatus('Loading ' + year + '…', 'ok');
+    apiFetch(API + '?year=' + encodeURIComponent(year))
+      .then(function (res) {
+        showStatus('', '');
+        if (res.body && res.body.ok) applyApiPayload(res.body);
+      })
+      .catch(function () { showStatus('Could not load year ' + year, 'error'); });
+  }
+
+  function uploadFile(file) {
+    var year = state.selectedYear;
+    var expected = expectedWorkbookName(year);
+    var base = (file.name || '').split(/[/\\]/).pop() || '';
+    var okName = base.toLowerCase() === expected.toLowerCase() ||
+      base.toLowerCase() === expected.replace(/\.xlsx$/i, '.xlsm').toLowerCase();
+    if (!okName) {
+      showStatus('Rename the file to ' + expected + ' for year ' + year + '.', 'error');
+      return;
+    }
+    var fd = new FormData();
+    fd.append('file', file);
+    fd.append('year', String(year));
+    showStatus('Parsing ' + expected + '…', 'ok');
+    apiFetch(API, { method: 'POST', body: fd })
+      .then(function (res) {
+        if (!res.body) {
+          var hint = res.response.status === 403 ? 'CSRF blocked — refresh the page and try again.'
+            : res.response.status ? 'Server returned ' + res.response.status + '.'
+            : 'No response from server.';
+          showStatus('Upload failed. ' + hint, 'error');
+          return;
+        }
+        if (!res.response.ok || !res.body.ok) {
+          showStatus(res.body.error || 'Upload failed', 'error');
+          return;
+        }
+        showStatus('', '');
+        applyApiPayload(res.body);
+      })
+      .catch(function (err) {
+        showStatus('Network error — is the server running? (' + (err.message || err) + ')', 'error');
+      });
+  }
+
+  function loadData() {
+    apiFetch(API)
+      .then(function (res) {
+        if (res.body && res.body.ok) applyApiPayload(res.body);
+      })
+      .catch(function () { /* ignore on first load */ });
+  }
+
+  function getActiveData() {
+    if (state.viewMode === 'compare' && state.compareTabYear && state.datasets[String(state.compareTabYear)]) {
+      return state.datasets[String(state.compareTabYear)].data;
+    }
+    return state.data;
+  }
+
+  function applyData(data, fileName, source, skipModeReset) {
+    state.data = data;
+    state.fileName = fileName;
+    state.source = source;
+    if (data && data.report_year) state.selectedYear = data.report_year;
+    if (!skipModeReset && state.viewMode !== 'compare') {
+      state.viewMode = 'single';
+    }
+    updateBrandTitle();
+    renderYearSwitcher();
+    setFileBadge(fileName, source);
+    document.getElementById('empty').hidden = true;
+    document.getElementById('dashboard').hidden = false;
+    renderTabs((data && data.tabs) || []);
+    renderDashboard();
+  }
+
+  function renderCompareBanner() {
+    if (state.viewMode !== 'compare' || state.compareYears.length < 2) return '';
+    var h = '<div class="compare-banner"><span><strong>Compare mode</strong> — viewing tab data for:</span><span class="tab-year-pills">';
+    state.compareYears.forEach(function (y) {
+      h += '<button type="button" class="tab-year-pill" data-compare-tab-year="' + y + '" aria-selected="' +
+        (y === state.compareTabYear ? 'true' : 'false') + '">' + y + '</button>';
+    });
+    return h + '</span></div>';
+  }
+
+  function bindCompareBanner(root) {
+    if (!root) return;
+    root.querySelectorAll('[data-compare-tab-year]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var y = parseInt(btn.dataset.compareTabYear, 10);
+        state.compareTabYear = y;
+        renderDashboard();
+      });
+    });
+  }
+
+  function renderCompareOverview() {
+    var years = state.compareYears.slice();
+    var kpiMap = {};
+    years.forEach(function (y) {
+      var pack = state.datasets[String(y)];
+      if (!pack || !pack.data || !pack.data.overview) return;
+      (pack.data.overview.kpis || []).forEach(function (k) {
+        if (!kpiMap[k.id]) {
+          kpiMap[k.id] = { id: k.id, label: k.label, sub: k.sub, values: {} };
+        }
+        kpiMap[k.id].values[y] = k.value;
+      });
+    });
+    var h = '<div class="compare-page">';
+    h += '<h3 class="compare-section-title">KPI comparison</h3>';
+    h += '<div class="table-scroll"><table class="compare-kpi-table"><thead><tr><th>Metric</th>';
+    years.forEach(function (y) { h += '<th>' + y + '</th>'; });
+    h += '</tr></thead><tbody>';
+    Object.keys(kpiMap).forEach(function (id) {
+      var row = kpiMap[id];
+      h += '<tr><td>' + escapeHtml(row.label) + '</td>';
+      years.forEach(function (y) {
+        h += '<td>' + escapeHtml(row.values[y] != null ? row.values[y] : '—') + '</td>';
+      });
+      h += '</tr>';
+    });
+    h += '</tbody></table></div>';
+    h += '<h3 class="compare-section-title">Monthly charts (side by side)</h3><div class="chart-grid">';
+    years.forEach(function (y, i) {
+      var pack = state.datasets[String(y)];
+      var ch = pack && pack.data && pack.data.overview && pack.data.overview.charts;
+      h += '<div class="chart-card span-6"><h3>Grid Electricity — ' + y + ' (KWH)</h3>';
+      h += '<div class="chart-wrap"><canvas id="chart-compare-grid-' + y + '"></canvas></div></div>';
+      if (i === 0 && ch) { /* init later */ }
+    });
+    h += '</div></div>';
+    return h;
+  }
+
+  function initCompareOverviewCharts() {
+    state.compareYears.forEach(function (y) {
+      var pack = state.datasets[String(y)];
+      if (!pack || !pack.data || !pack.data.overview) return;
+      var series = pack.data.overview.charts && pack.data.overview.charts.grid_electricity;
+      if (series) {
+        gradientBarChart('chart-compare-grid-' + y, series, CHART_GRADIENTS.grid, true);
+      }
+    });
+  }
+
+  function renderTabs(tabs) {
+    var nav = document.getElementById('tab-nav');
+    nav.innerHTML = '';
+    tabs.forEach(function (tab) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tab-btn';
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', tab.id === state.activeTab ? 'true' : 'false');
+      btn.dataset.tab = tab.id;
+      btn.innerHTML = '<span>' + (TAB_ICONS[tab.id] || '') + '</span> ' + tab.label;
+      btn.addEventListener('click', function () {
+        state.activeTab = tab.id;
+        nav.querySelectorAll('.tab-btn').forEach(function (b) {
+          b.setAttribute('aria-selected', b.dataset.tab === tab.id ? 'true' : 'false');
+        });
+        renderDashboard();
+      });
+      nav.appendChild(btn);
+    });
+  }
+
+  function renderDashboard() {
+    destroyCharts();
+    var root = document.getElementById('dashboard');
+    var d = getActiveData();
+    if (!d && state.viewMode !== 'compare') return;
+
+    var html = '';
+    if (state.viewMode === 'compare' && state.compareYears.length >= 2) {
+      if (state.activeTab === 'overview') {
+        html = renderCompareOverview();
+      } else {
+        html = renderCompareBanner();
+        d = getActiveData();
+        if (!d) {
+          html += '<p style="color:var(--muted)">No data for ' + state.compareTabYear + '.</p>';
+        } else if (state.activeTab === 'governance') html += renderGovernance(d.governance, d.overview);
+        else if (state.activeTab === 'transportation') {
+          html += renderTransportation(d.transportation);
+          state._transData = d.transportation;
+        }
+        else if (state.activeTab === 'electricity') html += renderElectricity(d.electricity);
+        else if (state.activeTab === 'generators') html += renderGenerators(d.generators);
+        else if (state.activeTab === 'water') html += renderWater(d.water);
+        else if (state.activeTab === 'waste') html += renderWaste(d.waste);
+        else if (state.activeTab === 'fugitive') html += renderFugitive(d.fugitive);
+        else html += renderSheetTab(d[state.activeTab], state.activeTab);
+      }
+      root.innerHTML = html;
+      bindCompareBanner(root);
+      if (state.activeTab === 'overview') initCompareOverviewCharts();
+      else if (state.activeTab === 'electricity') initElectricityCharts(d.electricity);
+      else if (state.activeTab === 'generators') initGeneratorsCharts(d.generators);
+      else if (state.activeTab === 'water') initWaterCharts(d.water);
+      else if (state.activeTab === 'waste') initWasteCharts(d.waste);
+      else if (state.activeTab === 'fugitive') initFugitiveCharts(d.fugitive);
+      else if (state.activeTab === 'transportation') {
+        initTransportationCharts(d.transportation);
+        bindTransportationFilters();
+      }
+      return;
+    }
+
+    if (!d) return;
+    if (state.activeTab === 'overview') html = renderOverview(d);
+    else if (state.activeTab === 'governance') html = renderGovernance(d.governance, d.overview);
+    else if (state.activeTab === 'transportation') {
+      html = renderTransportation(d.transportation);
+      state._transData = d.transportation;
+    }
+    else if (state.activeTab === 'electricity') html = renderElectricity(d.electricity);
+    else if (state.activeTab === 'generators') html = renderGenerators(d.generators);
+    else if (state.activeTab === 'water') html = renderWater(d.water);
+    else if (state.activeTab === 'waste') html = renderWaste(d.waste);
+    else if (state.activeTab === 'fugitive') html = renderFugitive(d.fugitive);
+    else html = renderSheetTab(d[state.activeTab], state.activeTab);
+    root.innerHTML = html;
+    if (state.activeTab === 'overview') initOverviewCharts(d.overview);
+    else if (state.activeTab === 'electricity') initElectricityCharts(d.electricity);
+    else if (state.activeTab === 'generators') initGeneratorsCharts(d.generators);
+    else if (state.activeTab === 'water') initWaterCharts(d.water);
+    else if (state.activeTab === 'waste') initWasteCharts(d.waste);
+    else if (state.activeTab === 'fugitive') initFugitiveCharts(d.fugitive);
+    else if (state.activeTab === 'transportation') {
+      initTransportationCharts(d.transportation);
+      bindTransportationFilters();
+    } else if (
+      state.activeTab !== 'governance' &&
+      state.activeTab !== 'transportation' &&
+      state.activeTab !== 'fugitive'
+    ) initSectionCharts(d[state.activeTab]);
+  }
+
+  function renderOverview(d) {
+    var ov = d.overview || {};
+    var kpis = ov.kpis || [];
+    var h = '<div class="kpi-grid">';
+    kpis.forEach(function (k) {
+      h += '<article class="kpi-card theme-' + (k.theme || 'green') + '">';
+      h += '<span class="kpi-icon" aria-hidden="true">' + (KPI_ICONS[k.id] || '•') + '</span>';
+      h += '<div class="value">' + escapeHtml(k.value) + '</div>';
+      h += '<div class="label">' + escapeHtml(k.label) + '</div>';
+      h += '<div class="sub">' + escapeHtml(k.sub || '') + '</div></article>';
+    });
+    h += '</div><div class="chart-grid">';
+    h += chartCard('span-7', 'Grid Electricity — Monthly Trend (KWH)', 'chart-grid');
+    h += chartCard('span-5', 'Solar Generation vs. Consumption (KWH)', 'chart-solar');
+    h += chartCard('span-4', 'Water Consumption (L)', 'chart-water');
+    h += chartCard('span-4', 'Fleet Fuel (L)', 'chart-fleet');
+    h += chartCard('span-4', 'Fugitive Gases (kg)', 'chart-fugitive');
+    h += chartCard('span-6', 'Fleet by Branch', 'chart-fleet-branch');
+    h += chartCard('span-6', 'Fleet by Vehicle Type', 'chart-fleet-type');
+    h += '</div>';
+    h += renderDataCoverage(ov.data_coverage);
+    return h;
+  }
+
+  var COVERAGE_ICONS = {
+    electricity: '⚡',
+    generators: '⛽',
+    transportation: '🚛',
+    water: '💧',
+    waste: '🗑️',
+    fugitive: '❄️'
+  };
+
+  function renderDataCoverage(coverage, extraClass) {
+    if (!coverage || !(coverage.items || []).length) return '';
+    var cls = 'coverage-section' + (extraClass ? ' ' + extraClass : '');
+    var h = '<section class="' + cls + '" aria-label="Data coverage status">';
+    h += '<div class="coverage-header"><h2>Data Coverage Status</h2><span class="line" aria-hidden="true"></span></div>';
+    h += '<div class="coverage-grid">';
+    coverage.items.forEach(function (item) {
+      var status = item.status || 'pending';
+      h += '<article class="coverage-card theme-' + (item.theme || 'green') + '">';
+      h += '<span class="coverage-icon" aria-hidden="true">' + (COVERAGE_ICONS[item.icon] || '•') + '</span>';
+      h += '<span class="coverage-label">' + escapeHtml(item.label) + '</span>';
+      h += '<span class="coverage-badge ' + status + '">' + escapeHtml(item.status_label || status) + '</span>';
+      h += '</article>';
+    });
+    h += '</div>';
+    if (coverage.footnote && (!extraClass || extraClass.indexOf('gov-') < 0)) {
+      h += '<p class="coverage-footnote">⚠️ ' + escapeHtml(coverage.footnote) + '</p>';
+    }
+    h += '</section>';
+    return h;
+  }
+
+  function chartCard(span, title, id) {
+    return '<div class="chart-card ' + span + '"><h3>' + escapeHtml(title) +
+      '</h3><div class="chart-wrap"><canvas id="' + id + '"></canvas></div></div>';
+  }
+
+  function renderGovernance(gov, overview) {
+    gov = gov || {};
+    var champions = gov.champions || [];
+    if (!champions.length && gov.group_champion) {
+      if (gov.group_champion.name) champions.push(gov.group_champion);
+      if (gov.subsidiary_champion && gov.subsidiary_champion.name) champions.push(gov.subsidiary_champion);
+    }
+    var owners = gov.data_owners || [];
+    var notes = gov.coverage_notes || [];
+    var coverage = gov.data_coverage || (overview && overview.data_coverage);
+
+    if (!champions.length && !owners.length) {
+      return '<div class="empty-state"><p>No governance data parsed.</p></div>';
+    }
+
+    var h = '<div class="gov-page">';
+
+    if (champions.length) {
+      h += '<section class="gov-section"><h3>ESG Champions</h3><div class="gov-champions-grid">';
+      champions.forEach(function (c) {
+        h += '<article class="gov-champion-card">';
+        h += '<span class="gov-card-icon" aria-hidden="true">' + (c.icon || '👤') + '</span>';
+        h += '<div><p class="gov-card-name">' + escapeHtml(c.name) + '</p>';
+        h += '<p class="gov-card-role">' + escapeHtml(c.role || '') + '</p>';
+        h += '<p class="gov-card-sub">' + escapeHtml(c.position || '') + '</p></div>';
+        h += '</article>';
+      });
+      h += '</div></section>';
+    }
+
+    if (owners.length) {
+      h += '<section class="gov-section"><h3>Data Owners</h3><div class="gov-owners-grid">';
+      owners.forEach(function (o) {
+        h += '<article class="gov-owner-card">';
+        h += '<span class="gov-card-icon" aria-hidden="true">' + (o.icon || '📋') + '</span>';
+        h += '<div><p class="gov-card-name">' + escapeHtml(o.name) + '</p>';
+        h += '<p class="gov-card-dept">' + escapeHtml(o.department || '') + '</p>';
+        h += '<p class="gov-card-scope-label">Data Scope</p>';
+        h += '<p class="gov-card-scope">' + escapeHtml(o.data_scope || '—') + '</p></div>';
+        h += '</article>';
+      });
+      h += '</div></section>';
+    }
+
+    if (coverage && (coverage.items || []).length) {
+      h += '<section class="gov-section gov-coverage">';
+      h += renderDataCoverage(coverage, 'gov-coverage-inner');
+      h += '</section>';
+    }
+
+    if (notes.length) {
+      h += '<section class="gov-section"><h3>Coverage Notes</h3>';
+      h += '<div class="gov-notes-box"><ul>';
+      notes.forEach(function (n) {
+        h += '<li><strong>' + escapeHtml(n.topic || '') + ':</strong> ' + escapeHtml(n.text || '') + '</li>';
+      });
+      h += '</ul></div></section>';
+    }
+
+    return h + '</div>';
+  }
+
+  var TRANS_MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP'];
+  var transFilterState = { search: '', type: 'all', branch: 'all', fuel: 'all' };
+
+  function renderTransportation(t) {
+    if (!t) return '<div class="empty-state"><p>No transportation data.</p></div>';
+    transFilterState = { search: '', type: 'all', branch: 'all', fuel: 'all' };
+    var h = '<div class="trans-page">';
+    h += '<div class="trans-kpis">';
+    (t.kpis || []).forEach(function (k) {
+      h += '<article class="trans-kpi theme-' + (k.theme || 'trans-red') + '">';
+      h += '<span class="trans-kpi-icon" aria-hidden="true">' + (k.icon || '🚛') + '</span>';
+      h += '<div class="value">' + escapeHtml(k.value) + '</div>';
+      h += '<div class="label">' + escapeHtml(k.label) + '</div>';
+      if (k.sub) h += '<div class="sub">' + escapeHtml(k.sub) + '</div>';
+      h += '</article>';
+    });
+    h += '</div>';
+    h += '<div class="trans-charts chart-grid">';
+    h += '<div class="chart-card span-4 trans-chart-fuel"><h3>Monthly Fuel (L)</h3>';
+    h += '<div class="chart-wrap"><canvas id="chart-trans-fuel"></canvas></div></div>';
+    h += '<div class="chart-card span-4 trans-chart-distance"><h3>Monthly Distance (km)</h3>';
+    h += '<div class="chart-wrap"><canvas id="chart-trans-distance"></canvas></div></div>';
+    h += '<div class="chart-card span-4 trans-chart-trips"><h3>Monthly Trips</h3>';
+    h += '<div class="chart-wrap"><canvas id="chart-trans-trips"></canvas></div></div>';
+    h += '</div>';
+    h += '<div class="trans-section">';
+    h += '<h3>Fleet Vehicle Register — All ' + (t.vehicle_count || 0) + ' Vehicles</h3>';
+    h += '<div class="trans-toolbar">';
+    h += '<label class="trans-search"><span aria-hidden="true">🔍</span>';
+    h += '<input type="search" id="trans-search" placeholder="Search plate, branch, type…" autocomplete="off"></label>';
+    h += renderTransFilterRow('Type', 'type', ['all'].concat((t.filters && t.filters.types) || []));
+    h += renderTransFilterRow('Branch', 'branch', ['all'].concat((t.filters && t.filters.branches) || []));
+    h += renderTransFilterRow('Fuel', 'fuel', ['all'].concat((t.filters && t.filters.fuels) || []));
+    h += '</div>';
+    h += '<p class="trans-count" id="trans-count"></p>';
+    h += '<div class="trans-table-scroll"><table class="trans-table" id="trans-fleet-table">';
+    h += renderTransFleetTableHead();
+    h += '<tbody id="trans-fleet-tbody"></tbody></table></div>';
+    h += '</div></div>';
+    return h;
+  }
+
+  function renderTransFilterRow(label, key, options) {
+    var h = '<div class="trans-filter-row"><span class="trans-filter-label">' + escapeHtml(label) + '</span>';
+    options.forEach(function (opt) {
+      var val = opt === 'all' ? 'all' : opt;
+      var pressed = transFilterState[key] === val ? 'true' : 'false';
+      h += '<button type="button" class="filter-pill" data-filter-key="' + key + '" data-filter-val="' +
+        escapeHtml(val) + '" aria-pressed="' + pressed + '">' + escapeHtml(opt === 'all' ? 'All' : opt) + '</button>';
+    });
+    return h + '</div>';
+  }
+
+  function renderTransFleetTableHead() {
+    var h = '<thead><tr>';
+    h += '<th class="sticky-col">#</th><th>Plate</th><th>Type</th><th>Model</th><th>Branch</th><th>Fuel</th>';
+    h += '<th>Max PLT</th><th>Max KG</th>';
+    TRANS_MONTHS.forEach(function (m) {
+      h += '<th colspan="3" class="month-head">' + m + '</th>';
+    });
+    h += '<th colspan="3" class="month-head">Total</th></tr><tr class="subhead">';
+    h += '<th class="sticky-col"></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th>';
+    TRANS_MONTHS.forEach(function () {
+      h += '<th>Dist (km)</th><th>Trips</th><th>Fuel (L)</th>';
+    });
+    h += '<th>Dist (km)</th><th>Trips</th><th>Fuel (L)</th></tr></thead>';
+    return h;
+  }
+
+  function transFuelPillHtml(fuel) {
+    var f = (fuel || '').toLowerCase();
+    var cls = 'fuel-pill-default';
+    if (f === 'diesel') cls = 'fuel-pill-diesel';
+    else if (f === 'ev') cls = 'fuel-pill-ev';
+    else if (f === '91') cls = 'fuel-pill-91';
+    return '<span class="fuel-pill ' + cls + '">' + escapeHtml(fuel || '—') + '</span>';
+  }
+
+  function transBranchMatches(branch, filter) {
+    if (filter === 'all') return true;
+    if (filter === 'AL BAHA') return branch === 'AL BAHA' || branch === 'AL Baha';
+    return branch === filter;
+  }
+
+  function transVehicleMatches(v) {
+    var q = (transFilterState.search || '').trim().toLowerCase();
+    if (q) {
+      var hay = (v.plate + ' ' + v.branch + ' ' + v.truck_type).toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    if (transFilterState.type !== 'all' && v.truck_type !== transFilterState.type) return false;
+    if (!transBranchMatches(v.branch, transFilterState.branch)) return false;
+    if (transFilterState.fuel !== 'all' && v.fuel_type !== transFilterState.fuel) return false;
+    return true;
+  }
+
+  function renderTransFleetRows(vehicles) {
+    var filtered = (vehicles || []).filter(transVehicleMatches);
+    var h = '';
+    filtered.forEach(function (v, idx) {
+      h += '<tr>';
+      h += '<td class="sticky-col">' + (idx + 1) + '</td>';
+      h += '<td>' + escapeHtml(v.plate) + '</td>';
+      h += '<td><span class="type-pill-truck">' + escapeHtml(v.truck_type) + '</span></td>';
+      h += '<td>' + escapeHtml(v.model) + '</td>';
+      h += '<td>' + escapeHtml(v.branch) + '</td>';
+      h += '<td>' + transFuelPillHtml(v.fuel_type) + '</td>';
+      h += '<td>' + (v.max_plt != null ? formatCellInt(v.max_plt) : '—') + '</td>';
+      h += '<td>' + (v.max_kg != null ? formatCellInt(v.max_kg) : '—') + '</td>';
+      TRANS_MONTHS.forEach(function (m) {
+        var d = v.distance && v.distance[m];
+        var tr = v.trips && v.trips[m];
+        var fu = v.fuel && v.fuel[m];
+        h += '<td>' + (d != null && d !== 0 ? formatCellInt(d) : '—') + '</td>';
+        h += '<td>' + (tr != null && tr !== 0 ? formatCellInt(tr) : '—') + '</td>';
+        h += '<td>' + (fu != null && fu !== 0 ? formatCellInt(fu) : '—') + '</td>';
+      });
+      h += '<td class="col-total">' + formatCellInt(v.total_distance || 0) + '</td>';
+      h += '<td class="col-total">' + formatCellInt(v.total_trips || 0) + '</td>';
+      h += '<td class="col-total">' + formatCellInt(v.total_fuel || 0) + '</td>';
+      h += '</tr>';
+    });
+    return { html: h, count: filtered.length, total: (vehicles || []).length };
+  }
+
+  function refreshTransFleetTable() {
+    var t = state._transData;
+    if (!t) return;
+    var tbody = document.getElementById('trans-fleet-tbody');
+    var countEl = document.getElementById('trans-count');
+    if (!tbody) return;
+    var result = renderTransFleetRows(t.vehicles);
+    tbody.innerHTML = result.html;
+    if (countEl) {
+      countEl.textContent = 'Showing ' + result.count + ' of ' + result.total + ' vehicles';
+    }
+  }
+
+  function bindTransportationFilters() {
+    refreshTransFleetTable();
+    var search = document.getElementById('trans-search');
+    if (search) {
+      search.addEventListener('input', function () {
+        transFilterState.search = search.value;
+        refreshTransFleetTable();
+      });
+    }
+    document.querySelectorAll('.trans-page .filter-pill').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var key = btn.getAttribute('data-filter-key');
+        var val = btn.getAttribute('data-filter-val');
+        transFilterState[key] = val;
+        document.querySelectorAll('.filter-pill[data-filter-key="' + key + '"]').forEach(function (b) {
+          b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+        });
+        refreshTransFleetTable();
+      });
+    });
+  }
+
+  function initTransportationCharts(t) {
+    if (!t) return;
+    if (t.monthly_fuel) {
+      gradientBarChart('chart-trans-fuel', t.monthly_fuel, CHART_GRADIENTS.fleet, true);
+    }
+    if (t.monthly_distance) {
+      gradientBarChart('chart-trans-distance', t.monthly_distance, {
+        top: '#15803d',
+        bottom: 'rgba(134, 239, 172, 0.35)'
+      }, true);
+    }
+    if (t.monthly_trips) {
+      gradientBarChart('chart-trans-trips', t.monthly_trips, {
+        top: '#7c3aed',
+        bottom: 'rgba(221, 214, 254, 0.4)'
+      }, false);
+    }
+  }
+
+  function kpiMini(label, value, theme) {
+    return '<article class="kpi-card ' + theme + '"><div class="value">' + escapeHtml(value) +
+      '</div><div class="label">' + escapeHtml(label) + '</div></article>';
+  }
+
+  function typePillClass(typeName) {
+    var t = (typeName || '').toLowerCase();
+    if (t.indexOf('manufacturing') >= 0) return 'manufacturing';
+    if (t.indexOf('warehouse') >= 0) return 'warehouse';
+    if (t.indexOf('office') >= 0) return 'office';
+    if (t.indexOf('labor') >= 0) return 'labor';
+    if (t.indexOf('accom') >= 0) return 'accommodation';
+    return 'default';
+  }
+
+  function typePillHtml(typeName) {
+    return '<span class="type-pill ' + typePillClass(typeName) + '">' + escapeHtml(typeName || '—') + '</span>';
+  }
+
+  function renderElectricity(elec) {
+    if (!elec) return '<div class="empty-state"><p>No electricity data.</p></div>';
+    var h = '<div class="elec-page">';
+    h += '<div class="elec-kpis">';
+    (elec.kpis || []).forEach(function (k) {
+      h += '<article class="elec-kpi theme-' + (k.theme || 'elec-yellow') + '">';
+      h += '<span class="elec-kpi-icon" aria-hidden="true">' + (k.icon || '⚡') + '</span>';
+      h += '<div class="value">' + escapeHtml(k.value) + '</div>';
+      h += '<div class="label">' + escapeHtml(k.label) + '</div>';
+      if (k.sub) h += '<div class="sub">' + escapeHtml(k.sub) + '</div>';
+      h += '</article>';
+    });
+    h += '</div>';
+    h += '<div class="chart-card span-12 elec-chart"><h3>Grid Electricity — Monthly by Facility (KWH)';
+    h += '<span class="chart-badge">Stacked</span></h3>';
+    h += '<div class="chart-wrap tall"><canvas id="chart-elec-stacked"></canvas></div></div>';
+    h += '<div class="elec-section"><h3>Grid Electricity — Monthly Detail Table (KWH)</h3>';
+    h += renderElectricityTable(elec.grid_table);
+    h += '</div>';
+    h += '<div class="elec-section"><h3 class="solar-title">Renewable Energy — Generation (KWH)</h3>';
+    h += renderElectricityTable({ rows: (elec.solar_generation_table || {}).rows || [], grand_total: null });
+    h += '</div>';
+    h += '<div class="elec-section"><h3 class="solar-title">Renewable Energy — Consumption (KWH)</h3>';
+    h += renderElectricityTable({ rows: (elec.solar_consumption_table || {}).rows || [], grand_total: null });
+    h += '</div></div>';
+    return h;
+  }
+
+  function renderElectricityTable(tbl) {
+    if (!tbl) return '<p>No data</p>';
+    var rows = tbl.rows || [];
+    var gt = tbl.grand_total;
+    var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    var h = '<div class="table-scroll"><table class="data-table elec-table"><thead><tr>';
+    h += '<th>Type</th><th>Loc</th><th>Facility Name</th>';
+    months.forEach(function (m) { h += '<th>' + m + '</th>'; });
+    h += '<th>Total</th></tr></thead><tbody>';
+    rows.forEach(function (r) {
+      h += '<tr><td>' + typePillHtml(r.facility_type) + '</td>';
+      h += '<td>' + escapeHtml(r.location) + '</td>';
+      h += '<td>' + escapeHtml(r.facility_name) + '</td>';
+      months.forEach(function (m) {
+        var val = r.months && r.months[m];
+        h += '<td>' + (val != null ? formatCellInt(val) : '—') + '</td>';
+      });
+      h += '<td class="col-total">' + (r.total != null ? formatCellInt(r.total) : '—') + '</td></tr>';
+    });
+    if (gt) {
+      h += '<tr class="grand-total"><td colspan="3"><strong>' + escapeHtml(gt.label || 'Grand Total') + '</strong></td>';
+      months.forEach(function (m) {
+        var val = gt.months && gt.months[m];
+        h += '<td><strong>' + (val != null ? formatCellInt(val) : '—') + '</strong></td>';
+      });
+      h += '<td class="col-total"><strong>' + (gt.total != null ? formatCellInt(gt.total) : '—') + '</strong></td></tr>';
+    }
+    return h + '</tbody></table></div>';
+  }
+
+  function formatCellInt(n) {
+    return Math.round(Number(n)).toLocaleString('en-US');
+  }
+
+  function formatCellNum(n) {
+    n = Number(n);
+    if (isNaN(n)) return '—';
+    if (Math.abs(n - Math.round(n)) < 0.05) return Math.round(n).toLocaleString('en-US');
+    return n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
+
+  function renderGenerators(gen) {
+    if (!gen) return '<div class="empty-state"><p>No generator data.</p></div>';
+    var h = '<div class="gen-page">';
+    h += '<div class="gen-kpis">';
+    (gen.kpis || []).forEach(function (k) {
+      h += '<article class="gen-kpi theme-' + (k.theme || 'gen-amber') + '">';
+      h += '<span class="gen-kpi-icon" aria-hidden="true">' + (k.icon || '⛽') + '</span>';
+      h += '<div class="value">' + escapeHtml(k.value) + '</div>';
+      h += '<div class="label">' + escapeHtml(k.label) + '</div>';
+      if (k.sub) h += '<div class="sub">' + escapeHtml(k.sub) + '</div>';
+      h += '</article>';
+    });
+    h += '</div>';
+    h += '<div class="chart-card span-12 gen-chart"><h3>Generator Fuel — Monthly (Liters)</h3>';
+    h += '<div class="chart-wrap tall"><canvas id="chart-gen-monthly"></canvas></div></div>';
+    h += '<div class="gen-section"><h3>Generator Fuel — Detail Table (Liters)</h3>';
+    h += renderGeneratorsTable(gen);
+    h += '</div></div>';
+    return h;
+  }
+
+  function renderGeneratorsTable(gen) {
+    var rows = gen.rows || [];
+    var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    var h = '<div class="table-scroll"><table class="data-table gen-table"><thead><tr>';
+    h += '<th>Type</th><th>Loc</th><th>Facility</th><th>Source</th><th>Fuel</th>';
+    months.forEach(function (m) { h += '<th>' + m + '</th>'; });
+    h += '<th>Total</th></tr></thead><tbody>';
+    rows.forEach(function (r) {
+      h += '<tr>';
+      h += '<td>' + typePillHtml(r.facility_type) + '</td>';
+      h += '<td>' + escapeHtml(r.location) + '</td>';
+      h += '<td>' + escapeHtml(r.facility_name) + '</td>';
+      h += '<td><span class="source-pill">' + escapeHtml(r.source_type || '—') + '</span></td>';
+      h += '<td><span class="fuel-pill">' + escapeHtml(r.fuel_type || 'Diesel') + '</span></td>';
+      months.forEach(function (m) {
+        var val = r.months && r.months[m];
+        h += '<td>' + (val != null ? formatCellInt(val) : '—') + '</td>';
+      });
+      h += '<td class="col-total">' + (r.total != null ? formatCellInt(r.total) : '—') + '</td>';
+      h += '</tr>';
+    });
+    return h + '</tbody></table></div>';
+  }
+
+  function initGeneratorsCharts(gen) {
+    if (!gen || !gen.monthly_series) return;
+    gradientBarChart('chart-gen-monthly', gen.monthly_series, {
+      top: '#c2410c',
+      bottom: 'rgba(254, 215, 170, 0.45)'
+    }, false);
+  }
+
+  function renderWater(w) {
+    if (!w) return '<div class="empty-state"><p>No water data.</p></div>';
+    var liters = w.liters || {};
+    var cost = w.cost || {};
+    var h = '<div class="water-page">';
+    h += '<div class="water-kpis">';
+    (w.kpis || []).forEach(function (k) {
+      h += '<article class="water-kpi theme-' + (k.theme || 'water-teal') + '">';
+      h += '<span class="water-kpi-icon" aria-hidden="true">' + (k.icon || '💧') + '</span>';
+      h += '<div class="value">' + escapeHtml(k.value) + '</div>';
+      h += '<div class="label">' + escapeHtml(k.label) + '</div>';
+      if (k.sub) h += '<div class="sub">' + escapeHtml(k.sub) + '</div>';
+      h += '</article>';
+    });
+    h += '</div>';
+    h += '<div class="chart-grid">';
+    h += '<div class="chart-card span-6 water-chart-liters"><h3>Water Consumption — Monthly (Liters)</h3>';
+    h += '<div class="chart-wrap"><canvas id="chart-water-liters"></canvas></div></div>';
+    h += '<div class="chart-card span-6 water-chart-cost"><h3>Water Cost — Monthly (SAR)</h3>';
+    h += '<div class="chart-wrap"><canvas id="chart-water-cost"></canvas></div></div>';
+    h += '</div>';
+    h += '<div class="water-section"><h3>Water Consumption — Liters Detail Table</h3>';
+    h += renderWaterTable(liters, 'liters');
+    h += '</div>';
+    h += '<div class="water-section"><h3 class="cost-title">Water Cost — SAR Detail Table</h3>';
+    h += renderWaterTable(cost, 'cost');
+    h += '</div></div>';
+    return h;
+  }
+
+  function renderWaterTable(tbl, kind) {
+    if (!tbl) return '<p>No data</p>';
+    var rows = tbl.rows || [];
+    var gt = tbl.grand_total;
+    var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    var tableClass = kind === 'cost' ? 'water-table-cost' : 'water-table-liters';
+    var h = '<div class="table-scroll"><table class="data-table water-table ' + tableClass + '"><thead><tr>';
+    h += '<th>Type</th><th>City</th><th>Facility</th>';
+    months.forEach(function (m) { h += '<th>' + m + '</th>'; });
+    h += '<th>Total</th></tr></thead><tbody>';
+    rows.forEach(function (r) {
+      h += '<tr><td>' + typePillHtml(r.facility_type) + '</td>';
+      h += '<td>' + escapeHtml(r.location) + '</td>';
+      h += '<td>' + escapeHtml(r.facility_name) + '</td>';
+      months.forEach(function (m) {
+        var val = r.months && r.months[m];
+        if (val == null) {
+          h += '<td>—</td>';
+        } else {
+          var cls = val < 0 ? ' class="neg"' : '';
+          h += '<td' + cls + '>' + formatCellInt(val) + '</td>';
+        }
+      });
+      h += '<td class="col-total">' + (r.total != null ? formatCellInt(r.total) : '—') + '</td></tr>';
+    });
+    if (gt) {
+      h += '<tr class="grand-total"><td colspan="3"><strong>' + escapeHtml(gt.label || 'Grand Total') + '</strong></td>';
+      months.forEach(function (m) {
+        var val = gt.months && gt.months[m];
+        h += '<td><strong>' + (val != null ? formatCellInt(val) : '—') + '</strong></td>';
+      });
+      h += '<td class="col-total"><strong>' + (gt.total != null ? formatCellInt(gt.total) : '—') + '</strong></td></tr>';
+    }
+    return h + '</tbody></table></div>';
+  }
+
+  function renderWaste(w) {
+    if (!w) return '<div class="empty-state"><p>No waste data.</p></div>';
+    var recycling = w.recycling || {};
+    var cost = w.cost || {};
+    var h = '<div class="waste-page">';
+    h += '<div class="waste-kpis">';
+    (w.kpis || []).forEach(function (k) {
+      h += '<article class="waste-kpi theme-' + (k.theme || 'waste-green') + '">';
+      h += '<span class="waste-kpi-icon" aria-hidden="true">' + (k.icon || '♻️') + '</span>';
+      h += '<div class="value">' + escapeHtml(k.value) + '</div>';
+      h += '<div class="label">' + escapeHtml(k.label) + '</div>';
+      if (k.sub) h += '<div class="sub">' + escapeHtml(k.sub) + '</div>';
+      h += '</article>';
+    });
+    h += '</div>';
+    h += '<div class="waste-charts chart-grid">';
+    h += '<div class="chart-card span-6 waste-chart-recycling"><h3>Recycling Volume — Monthly (kg)</h3>';
+    h += '<div class="chart-wrap"><canvas id="chart-waste-recycling"></canvas></div></div>';
+    h += '<div class="chart-card span-6 waste-chart-cost"><h3>Waste Cost — Monthly (SAR)</h3>';
+    h += '<div class="chart-wrap"><canvas id="chart-waste-cost"></canvas></div></div>';
+    h += '</div>';
+    h += '<div class="waste-section"><h3>Recycling — Dammam Facility Detail (kg)</h3>';
+    h += renderWasteTable(recycling, 'material', false);
+    h += '</div>';
+    h += '<div class="waste-section cost-section"><h3>Waste Cost — General Waste Disposal Cost (SAR)</h3>';
+    h += renderWasteTable(cost, 'waste_type', true);
+    h += '</div></div>';
+    return h;
+  }
+
+  function renderWasteTable(tbl, detailKey, scrollable) {
+    if (!tbl) return '<p>No data</p>';
+    var rows = tbl.rows || [];
+    var gt = tbl.grand_total;
+    var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    var detailLabel = detailKey === 'waste_type' ? 'Waste Type' : 'Material';
+    var wrapCls = scrollable ? 'waste-table-scroll' : 'table-scroll';
+    var tableCls = 'data-table waste-table' + (detailKey === 'waste_type' ? ' cost-table' : '');
+    var h = '<div class="' + wrapCls + '"><table class="' + tableCls + '"><thead><tr>';
+    h += '<th class="text-left">Type</th><th class="text-left">City</th><th class="text-left">Facility</th>';
+    h += '<th class="text-left">' + detailLabel + '</th>';
+    months.forEach(function (m) { h += '<th>' + m + '</th>'; });
+    h += '<th>Total</th></tr></thead><tbody>';
+    rows.forEach(function (r) {
+      h += '<tr>';
+      h += '<td class="text-left">' + typePillHtml(r.facility_type) + '</td>';
+      h += '<td class="text-left">' + escapeHtml(r.location) + '</td>';
+      h += '<td class="text-left">' + escapeHtml(r.facility_name) + '</td>';
+      h += '<td class="text-left">' + escapeHtml(r[detailKey] || r.material || r.waste_type || '—') + '</td>';
+      months.forEach(function (m) {
+        var val = r.months && r.months[m];
+        h += '<td>' + (val != null ? formatCellInt(val) : '—') + '</td>';
+      });
+      h += '<td class="col-total">' + (r.total != null ? formatCellInt(r.total) : '—') + '</td>';
+      h += '</tr>';
+    });
+    if (gt) {
+      h += '<tr class="grand-total">';
+      h += '<td class="text-left" colspan="4"><strong>' + escapeHtml(gt.label || 'TOTAL') + '</strong></td>';
+      months.forEach(function (m) {
+        var val = gt.months && gt.months[m];
+        h += '<td><strong>' + (val != null ? formatCellInt(val) : '—') + '</strong></td>';
+      });
+      h += '<td class="col-total"><strong>' + (gt.total != null ? formatCellInt(gt.total) : '—') + '</strong></td>';
+      h += '</tr>';
+    }
+    return h + '</tbody></table></div>';
+  }
+
+  function renderFugitive(f) {
+    if (!f) return '<div class="empty-state"><p>No fugitive gas data.</p></div>';
+    var h = '<div class="fug-page">';
+    h += '<div class="fug-kpis">';
+    (f.kpis || []).forEach(function (k) {
+      h += '<article class="fug-kpi theme-' + (k.theme || 'fug-purple') + '">';
+      h += '<span class="fug-kpi-icon" aria-hidden="true">' + (k.icon || '❄️') + '</span>';
+      h += '<div class="value">' + escapeHtml(k.value) + '</div>';
+      h += '<div class="label">' + escapeHtml(k.label) + '</div>';
+      if (k.sub) h += '<div class="sub">' + escapeHtml(k.sub) + '</div>';
+      h += '</article>';
+    });
+    h += '</div>';
+    h += '<div class="chart-card span-12 fug-chart"><h3><span aria-hidden="true">❄️</span> Fugitive Gas Refills — Monthly by Equipment (kg)</h3>';
+    h += '<div class="chart-wrap tall"><canvas id="chart-fug-stacked"></canvas></div></div>';
+    h += '<div class="fug-section"><h3>Fugitive Gas Refills — Full Detail Table (kg)</h3>';
+    h += renderFugitiveTable(f);
+    h += '</div></div>';
+    return h;
+  }
+
+  function renderFugitiveTable(f) {
+    var rows = f.rows || [];
+    var gt = f.grand_total;
+    var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    var h = '<div class="fug-table-scroll table-scroll"><table class="data-table fug-table"><thead><tr>';
+    h += '<th class="text-left">Type</th><th class="text-left">Loc</th><th class="text-left">Facility</th>';
+    h += '<th class="text-left">Equipment</th><th class="text-left">Gas Type</th><th class="text-left">Reason</th>';
+    months.forEach(function (m) { h += '<th>' + m + '</th>'; });
+    h += '<th>Total</th></tr></thead><tbody>';
+    rows.forEach(function (r) {
+      h += '<tr>';
+      h += '<td class="text-left">' + typePillHtml(r.facility_type) + '</td>';
+      h += '<td class="text-left">' + escapeHtml(r.location) + '</td>';
+      h += '<td class="text-left">' + escapeHtml(r.facility_name) + '</td>';
+      h += '<td class="text-left">' + escapeHtml(r.equipment_type) + '</td>';
+      h += '<td class="text-left">' + escapeHtml(r.gas_name) + '</td>';
+      h += '<td class="text-left">' + escapeHtml(r.reason) + '</td>';
+      months.forEach(function (m) {
+        var val = r.months && r.months[m];
+        h += '<td>' + (val != null && val !== 0 ? formatCellNum(val) : '—') + '</td>';
+      });
+      h += '<td class="col-total">' + (r.total != null ? formatCellNum(r.total) : '—') + '</td>';
+      h += '</tr>';
+    });
+    if (gt) {
+      h += '<tr class="grand-total">';
+      h += '<td class="text-left" colspan="6"><strong>' + escapeHtml(gt.label || 'TOTAL') + '</strong></td>';
+      months.forEach(function (m) {
+        var val = gt.months && gt.months[m];
+        h += '<td><strong>' + (val != null && val !== 0 ? formatCellNum(val) : '—') + '</strong></td>';
+      });
+      h += '<td class="col-total"><strong>' + (gt.total != null ? formatCellNum(gt.total) : '—') + '</strong></td>';
+      h += '</tr>';
+    }
+    return h + '</tbody></table></div>';
+  }
+
+  function initFugitiveCharts(f) {
+    if (!f || !f.stacked_chart) return;
+    stackedBarChart('chart-fug-stacked', f.stacked_chart);
+  }
+
+  function initWasteCharts(w) {
+    if (!w) return;
+    if (w.monthly_recycling) {
+      gradientBarChart('chart-waste-recycling', w.monthly_recycling, {
+        top: '#4a90e2',
+        bottom: 'rgba(191, 219, 254, 0.5)'
+      }, false);
+    }
+    if (w.monthly_cost) {
+      gradientBarChart('chart-waste-cost', w.monthly_cost, {
+        top: '#d32f2f',
+        bottom: 'rgba(255, 138, 101, 0.45)'
+      }, false);
+    }
+  }
+
+  function initWaterCharts(w) {
+    if (!w) return;
+    var liters = w.liters || {};
+    var cost = w.cost || {};
+    if (liters.monthly_series) {
+      gradientBarChart('chart-water-liters', liters.monthly_series, {
+        top: '#4db6ac',
+        bottom: 'rgba(153, 246, 228, 0.45)'
+      }, true);
+    }
+    if (cost.monthly_series) {
+      gradientBarChart('chart-water-cost', cost.monthly_series, {
+        top: '#c06c5d',
+        bottom: 'rgba(254, 202, 202, 0.45)'
+      }, false);
+    }
+  }
+
+  function renderSheetTab(tabData, tabId) {
+    if (!tabData) return '<div class="empty-state"><p>No data for this tab.</p></div>';
+    var sections = tabData.sections || [];
+    var h = '<div class="chart-grid">' + chartCard('span-12', 'Monthly totals', 'chart-tab-main') + '</div>';
+    sections.forEach(function (sec, idx) {
+      h += '<div class="section-block"><h3>' + escapeHtml(sec.title) + '</h3>';
+      h += '<p style="font-size:0.8rem;color:var(--muted);margin:0 0 0.5rem">' +
+        sec.facility_count + ' facilities · annual total: ' + formatNum(sec.annual_total) + '</p>';
+      h += renderSectionTable(sec);
+      h += '</div>';
+    });
+    return h;
+  }
+
+  function renderSectionTable(sec) {
+    var rows = sec.rows || [];
+    if (!rows.length) return '<p>No rows</p>';
+    var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    var h = '<div class="table-scroll"><table class="data-table"><thead><tr><th>Facility</th><th>Location</th>';
+    months.forEach(function (m) { h += '<th>' + m + '</th>'; });
+    h += '</tr></thead><tbody>';
+    rows.slice(0, 80).forEach(function (r) {
+      h += '<tr><td>' + escapeHtml(r.facility_name || '') + '</td><td>' + escapeHtml(r.location || '') + '</td>';
+      months.forEach(function (m) {
+        var val = r.months && r.months[m];
+        h += '<td>' + (val != null ? Math.round(val) : '—') + '</td>';
+      });
+      h += '</tr>';
+    });
+    if (rows.length > 80) h += '<tr><td colspan="14" style="text-align:center;color:var(--muted)">… ' + (rows.length - 80) + ' more rows</td></tr>';
+    return h + '</tbody></table></div>';
+  }
+
+  function initOverviewCharts(ov) {
+    var ch = ov.charts || {};
+    gradientBarChart('chart-grid', ch.grid_electricity || [], CHART_GRADIENTS.grid, true);
+    dualLineChart('chart-solar', ch.solar_generation, ch.solar_consumption);
+    gradientBarChart('chart-water', ch.water || [], CHART_GRADIENTS.water, true);
+    gradientBarChart('chart-fleet', ch.fleet_fuel || [], CHART_GRADIENTS.fleet, true);
+    lineChart('chart-fugitive', ch.fugitive || [], '#7c3aed');
+    categoryBarChart('chart-fleet-branch', ch.fleet_by_branch || [], CHART_GRADIENTS.branch);
+    donutChart('chart-fleet-type', ch.fleet_by_vehicle_type || []);
+  }
+
+  function initElectricityCharts(elec) {
+    if (!elec || !elec.stacked_chart) return;
+    stackedBarChart('chart-elec-stacked', elec.stacked_chart);
+  }
+
+  var STACKED_PALETTE = [
+    '#3b82f6', '#f97316', '#22c55e', '#ef4444', '#8b5cf6',
+    '#a16207', '#ec4899', '#64748b', '#84cc16', '#06b6d4',
+    '#1e3a8a', '#16a34a', '#eab308', '#0d9488', '#dc2626',
+    '#7c3aed', '#d97706', '#14b8a6', '#f43f5e', '#4ade80', '#6366f1'
+  ];
+
+  function stackedBarChart(id, chartData) {
+    var el = document.getElementById(id);
+    if (!el || !chartData.datasets || !chartData.datasets.length) return;
+    var datasets = chartData.datasets.map(function (ds, i) {
+      return {
+        label: ds.label,
+        data: ds.data,
+        backgroundColor: STACKED_PALETTE[i % STACKED_PALETTE.length],
+        borderRadius: 2,
+        borderSkipped: false
+      };
+    });
+    charts.push(new Chart(el, {
+      type: 'bar',
+      data: { labels: chartData.labels || [], datasets: datasets },
+      options: Object.assign(chartOpts(true), {
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+          y: {
+            stacked: true,
+            grid: { color: 'rgba(0,0,0,0.06)' },
+            ticks: {
+              callback: function (v) {
+                var n = Math.round(v);
+                if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+                return fmtAxis(v);
+              },
+              font: { size: 10 }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 10, font: { size: 9 }, padding: 8 }
+          }
+        }
+      })
+    }));
+  }
+
+  function initSectionCharts(tabData) {
+    if (!tabData) return;
+    var sections = tabData.sections || [];
+    if (sections[0]) {
+      var colors = { water: '#14b8a6', waste: '#22c55e', fugitive: '#a855f7', generators: '#d97706' };
+      var g = { water: CHART_GRADIENTS.water, waste: { top: '#22c55e', bottom: 'rgba(187,247,208,0.4)' }, fugitive: { top: '#7c3aed', bottom: 'rgba(221,214,254,0.4)' }, generators: { top: '#c2410c', bottom: 'rgba(254,215,170,0.4)' } };
+      gradientBarChart('chart-tab-main', sections[0].monthly_series || [], g[state.activeTab] || CHART_GRADIENTS.grid, true);
+    }
+  }
+
+  function labels(series) {
+    return (series || []).map(function (p) { return p.month; });
+  }
+  function values(series) {
+    return (series || []).map(function (p) { return p.value; });
+  }
+
+  function barGradient(ctx, chartArea, grad) {
+    if (!chartArea) return grad.top;
+    var g = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+    g.addColorStop(0, grad.bottom);
+    g.addColorStop(1, grad.top);
+    return g;
+  }
+
+  function gradientBarChart(id, series, grad, millions) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    charts.push(new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: labels(series),
+        datasets: [{
+          data: values(series),
+          backgroundColor: function (ctx) {
+            return barGradient(ctx.chart.ctx, ctx.chart.chartArea, grad);
+          },
+          borderRadius: 8,
+          borderSkipped: false
+        }]
+      },
+      options: chartOpts(millions)
+    }));
+  }
+
+  function barChart(id, series, color, millions) {
+    gradientBarChart(id, series, { top: color, bottom: color + '55' }, millions);
+  }
+
+  function lineChart(id, series, color) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    charts.push(new Chart(el, {
+      type: 'line',
+      data: {
+        labels: labels(series),
+        datasets: [{
+          data: values(series),
+          borderColor: color,
+          backgroundColor: 'rgba(124, 58, 237, 0.08)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 5,
+          pointBackgroundColor: color,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
+        }]
+      },
+      options: chartOpts(false)
+    }));
+  }
+
+  function categoryBarChart(id, items, grad) {
+    var el = document.getElementById(id);
+    if (!el || !items.length) return;
+    var g = typeof grad === 'object' ? grad : { top: grad, bottom: grad + '44' };
+    charts.push(new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: items.map(function (x) { return x.label; }),
+        datasets: [{
+          data: items.map(function (x) { return x.value; }),
+          backgroundColor: function (ctx) {
+            return barGradient(ctx.chart.ctx, ctx.chart.chartArea, g);
+          },
+          borderRadius: 6
+        }]
+      },
+      options: Object.assign(chartOpts(false), {
+        indexAxis: 'y',
+        plugins: { legend: { display: false } }
+      })
+    }));
+  }
+
+  function donutChart(id, items) {
+    var el = document.getElementById(id);
+    if (!el || !items.length) return;
+    var palette = ['#15803d', '#38bdf8', '#ea580c', '#7c3aed', '#dc2626', '#1e3a5f', '#0d9488', '#eab308'];
+    charts.push(new Chart(el, {
+      type: 'doughnut',
+      data: {
+        labels: items.map(function (x) { return x.label; }),
+        datasets: [{
+          data: items.map(function (x) { return x.value; }),
+          backgroundColor: items.map(function (_, i) { return palette[i % palette.length]; })
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } }
+      }
+    }));
+  }
+
+  function dualLineChart(id, gen, use) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    charts.push(new Chart(el, {
+      type: 'line',
+      data: {
+        labels: labels(gen || use),
+        datasets: [
+          {
+            label: 'Generation',
+            data: values(gen),
+            borderColor: '#ea580c',
+            backgroundColor: 'rgba(234, 88, 12, 0.18)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0
+          },
+          {
+            label: 'Consumption',
+            data: values(use),
+            borderColor: '#15803d',
+            backgroundColor: 'rgba(21, 128, 61, 0.12)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: Object.assign(chartOpts(false), {
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12, font: { size: 11 } }
+          }
+        }
+      })
+    }));
+  }
+
+  function chartOpts(millions) {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: {
+          ticks: {
+            callback: function (v) { return millions ? fmtAxis(v) : v; }
+          },
+          grid: { color: 'rgba(0,0,0,0.06)' }
+        },
+        x: { grid: { display: false } }
+      }
+    };
+  }
+
+  function formatNum(n) {
+    if (n == null || isNaN(n)) return '—';
+    n = Number(n);
+    if (n >= 1e6) return Math.round(n / 1e6) + 'M';
+    if (n >= 1e4) return Math.round(n / 1e3) + 'K';
+    return Math.round(n).toLocaleString('en-US');
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  document.getElementById('file-input').addEventListener('change', function (e) {
+    if (e.target.files[0]) uploadFile(e.target.files[0]);
+    e.target.value = '';
+  });
+  document.getElementById('file-input-empty').addEventListener('change', function (e) {
+    if (e.target.files[0]) uploadFile(e.target.files[0]);
+    e.target.value = '';
+  });
+  document.getElementById('btn-clear').addEventListener('click', function () {
+    var url = API + '?year=' + encodeURIComponent(state.selectedYear);
+    apiFetch(url, { method: 'DELETE' }).then(function (res) {
+      if (res.body && res.body.ok) {
+        applyApiPayload(res.body);
+        destroyCharts();
+      }
+    });
+  });
+
+  document.querySelectorAll('.view-mode-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setViewMode(btn.dataset.mode);
+    });
+  });
+  renderYearSwitcher();
+  updateBrandTitle();
+  loadData();
+})();
+  </script>
+</body>
+</html>
